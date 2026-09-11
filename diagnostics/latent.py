@@ -90,6 +90,7 @@ def _fit_linear_probes(
     learning_rate: float,
     seed: int,
     device: torch.device,
+    eps: float = 1e-8,
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
     """Fit independent probes and return accuracy-aware evaluation baselines."""
     if features.ndim != 4 or labels.ndim != 2:
@@ -106,6 +107,10 @@ def _fit_linear_probes(
     fit_idx, eval_idx = permutation[:fit_size], permutation[fit_size:]
     x_fit = features[:, :, fit_idx, :].to(device=device, dtype=torch.float32)
     x_eval = features[:, :, eval_idx, :].to(device=device, dtype=torch.float32)
+    fit_mean = x_fit.mean(dim=2, keepdim=True)
+    fit_std = x_fit.std(dim=2, keepdim=True, unbiased=False).clamp_min(eps)
+    x_fit = (x_fit - fit_mean) / fit_std
+    x_eval = (x_eval - fit_mean) / fit_std
     y_fit_base = labels[:, fit_idx].to(device=device, dtype=torch.long)
     y_eval_base = labels[:, eval_idx].to(device=device, dtype=torch.long)
 
@@ -200,6 +205,7 @@ def run_probe_control(
             learning_rate=cfg.diagnostics.probe_lr,
             seed=cfg.diagnostics.seed,
             device=device,
+            eps=cfg.diagnostics.eps,
         )
         return {
             "shuffle_labels": shuffle_labels,
@@ -398,6 +404,7 @@ def run_latent_diagnostics(
                 learning_rate=cfg.diagnostics.probe_lr,
                 seed=cfg.diagnostics.seed,
                 device=device,
+                eps=cfg.diagnostics.eps,
             )
             probe: dict[str, Any] = {
                 "chance_accuracy": 1.0 / cfg.rhm.v,

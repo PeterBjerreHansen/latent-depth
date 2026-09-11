@@ -132,6 +132,36 @@ def test_linear_probe_fitter_recovers_linearly_encoded_labels():
     assert torch.all(balanced_accuracy > 0.99)
 
 
+def test_linear_probe_standardization_removes_feature_scale_effect():
+    torch.manual_seed(17)
+    features = torch.randn(1, 2, 32, 4)
+    labels = (torch.arange(32) % 4).unsqueeze(0)
+    scales = torch.tensor([0.1, 2.0, 7.0, 30.0])
+    scaled_features = features * scales
+
+    unscaled = _fit_linear_probes(
+        features,
+        labels,
+        vocab_size=4,
+        steps=12,
+        learning_rate=0.03,
+        seed=91,
+        device=torch.device("cpu"),
+    )
+    scaled = _fit_linear_probes(
+        scaled_features,
+        labels,
+        vocab_size=4,
+        steps=12,
+        learning_rate=0.03,
+        seed=91,
+        device=torch.device("cpu"),
+    )
+
+    for left, right in zip(unscaled[:4], scaled[:4]):
+        torch.testing.assert_close(left, right, atol=1e-5, rtol=1e-5)
+
+
 def test_clustering_score_has_expected_endpoints():
     original = torch.randn(3, 40, 6)
     non_synonym = original.roll(shifts=1, dims=1)
