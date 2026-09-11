@@ -2,11 +2,9 @@
 
 **Status:** screen and minimal replication complete  
 **Decision:** rerun the baseline before implementing the auxiliary loss; the layerwise `A/C` pattern is encouraging, but the full `A/C/S` gate is not yet replicated
-**Canonical gate:** [`documents/npt_l5_expectation.md`](../../documents/npt_l5_expectation.md)
-
-This is the Stage 01 report paired with the canonical expectation. The planned
-rerun must extend this report with the full factorial results and state its
-decision against that pre-run document.
+This is the Stage 01 report paired with the expectation in the stage README.
+The planned rerun must extend this report with the full factorial results and
+state its decision against that pre-run specification.
 
 This report covers the corrected implementation after the checkpoint-metric,
 probe-standardization, and exposure-budget fixes. The interrupted earlier run

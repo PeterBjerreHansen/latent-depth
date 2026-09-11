@@ -4,11 +4,9 @@ This stage asks whether ordinary causal next-token prediction develops a
 layerwise, temporally ordered hierarchy of RHM latents. It must be completed
 before adding the latent auxiliary loss.
 
-The canonical decision gate is
-[`documents/npt_l5_expectation.md`](../../documents/npt_l5_expectation.md). The current
-evidence and the reason for the planned rerun are in
-[RESULTS.md](RESULTS.md). Compare the completed rerun with the expectation
-document before proceeding to any auxiliary objective.
+This README contains the pre-run expectation and decision gate for the stage.
+The paired evidence is in [RESULTS.md](RESULTS.md). Compare the completed
+rerun with the criteria below before proceeding to any auxiliary objective.
 
 ## Protocol
 
@@ -27,6 +25,155 @@ The diagnostics report the first completed constituent at positions
 `t=1, 3, 7, 15` for `H1` through `H4`. Layer `j=0` is the embedding stream;
 `j=1,...,8` are post-block residual streams. A full acquisition claim must
 use the same layer for accessibility, synonym invariance, and sensitivity.
+
+## Pre-run expectation and decision gate
+
+The ordinary causal next-token prediction (NTP) baseline has one specific job:
+show that the model develops a temporally ordered hierarchy of internal
+abstractions, with enough separation between transitions that changing the
+auxiliary target could plausibly matter.
+
+This section is the pre-run specification for the eventual Stage 01 report.
+The report must use the same quantities and acquisition rule, and must state
+`go`, `no-go`, or `rerun baseline` against these criteria. New criteria must be
+agreed before a rerun, not introduced after inspecting its results.
+
+### Expected training-age pattern
+
+The exact step numbers are not predictions. The important expectation is a
+reproducible ordering with meaningful time between transitions while held-out
+NTP is still improving.
+
+| training age | NTP | `H1` | `H2` | `H3` | `H4` |
+|---|---|---|---|---|---|
+| step 0 | baseline | baseline | baseline | baseline | baseline |
+| early | improving | emerging | weak | weak | weak |
+| early/mid | improving | strong | emerging | weak | weak |
+| mid | improving | strong | strong | emerging | weak |
+| later | improving | strong | strong | stronger | perhaps emerging |
+
+The ideal checkpoint for a later auxiliary experiment has `H1` established,
+`H2` beginning to form, `H3` largely absent, and substantial remaining NTP
+headroom. Transition times such as `tau_1 ~= 1000`, `tau_2 ~= 3000`, and
+`tau_3 ~= 7000` are useful only as an order-of-magnitude example; the numbers
+themselves do not matter.
+
+Layer order is weaker than level order. We do not require block 1 to encode
+`H1`, block 2 to encode `H2`, and so on. The useful object is the evolution of
+the layer-by-level heatmaps.
+
+### What the run must show
+
+#### Held-out NTP learning
+
+Validation NLL must fall substantially from step zero and remain better than
+the relevant uniform and grammar-aware controls. Per-position NLL should show
+that learning is not confined to trivial local positions. Training loss alone
+is insufficient.
+
+#### Latent accessibility above controls
+
+For each `H_r`, balanced accuracy of a frozen linear probe should rise clearly
+above its step-zero value, the shuffled-label probe, and the empirical
+majority-class baseline. The theoretical uniform chance value is useful
+context, but step-zero accuracy need not equal it because token identity and
+position can make information linearly accessible before training.
+
+#### Synonym invariance at the same transition
+
+When a different production rule realizes the same latent, the representation
+should become more similar than when the corresponding latent changes. In the
+repository's notation,
+
+\[
+C_{j,r}=1-\frac{d_{\mathrm{syn}}}{d_{\mathrm{non}}}
+\]
+
+should move from its initial baseline toward positive values at approximately
+the same training ages at which `H_r` becomes accessible. A probe that rises
+while clustering remains flat near zero is evidence for decodability, not yet
+for the abstraction of interest. For a full acquisition claim, accessibility,
+invariance, and sensitivity must all hold at the same residual-stream layer
+`j`; values from different layers may not be combined.
+
+#### Sensitivity to changing the latent
+
+Synonym invariance must not be explained by representation collapse. Changing
+`H_r` should still produce a substantial representation change, measured by
+the matched latent-replacement sensitivity control.
+
+#### Ordered, replicated transitions
+
+We do not require a mathematically perfect ordering for every seed. We expect
+something qualitatively like
+
+\[
+\tau_1 < \tau_2 < \tau_3
+\]
+
+on the canonical run, with the `H1 -> H2` ordering surviving at least one
+additional model seed and one additional grammar realization. `H3` emerging
+and `H4` remaining late are supporting evidence; convincingly acquiring `H1`
+and `H2` is the minimum useful result.
+
+### Proceed to the latent auxiliary loss only if
+
+- held-out NTP improves strongly and still has headroom after `H1` is learned;
+- `H1` and `H2` are convincingly acquired, with `H3` at least beginning to
+  emerge if the run budget permits;
+- acquisition times are visibly separated rather than all appearing at the
+  first evaluation;
+- each claimed transition is supported by balanced accessibility, positive
+  synonym invariance, and latent-replacement sensitivity at the same layer;
+- the qualitative `H1 -> H2` ordering is not peculiar to one grammar/model
+  seed pair; and
+- there is a useful transition checkpoint where `H1` is established, `H2` is
+  emerging, `H3` is mostly absent, and NTP is still improving.
+
+If these conditions hold, freeze the baseline protocol and implement the first
+auxiliary comparison as separate from-scratch runs:
+
+\[
+\mathcal L=\mathcal L_{\mathrm{NTP}}+
+\lambda\mathcal L_{\mathrm{next\ latent}}^{(j)},
+\qquad
+j\in\{\text{embedding},1,2,4,6,8\}.
+\]
+
+The first question is which fixed target minimizes time to acquire `H1`, `H2`,
+and `H3`. Adaptive target switching comes only after that fixed-target
+comparison produces a meaningful developmental clock.
+
+### Rerun the baseline instead if
+
+- probes become strong but synonym clustering stays near its initial baseline;
+- all hierarchy levels rise together at the first evaluation;
+- only `H1` develops within the available budget;
+- the ordering changes wildly across grammar seeds; or
+- NTP saturates before there is a window in which target choices could plausibly
+  have different value.
+
+These outcomes are informative baseline failures, not reasons to add the
+auxiliary objective anyway. Adjust the dataset size, training budget,
+evaluation cadence, or model capacity, then rerun the NTP baseline against this
+same expectation.
+
+### Reporting requirements
+
+The Stage 01 report must include, on the same training-age axis:
+
+- held-out mean and per-position NTP NLL;
+- layer-by-level balanced probe accuracy with shuffled-label, majority, and
+  untrained-backbone controls;
+- synonym-clustering scores and synonym/non-synonym distances;
+- latent-replacement sensitivity;
+- transition estimates or clearly marked qualitative transition windows; and
+- the canonical configuration, grammar/model seeds, checkpoints, total samples
+  seen, and device/runtime details.
+
+The report must explicitly state **go**, **no-go**, or **rerun baseline** against
+this section. Only a **go** decision authorizes the latent auxiliary-loss
+implementation.
 
 ## Rerun
 
@@ -69,6 +216,6 @@ layer-by-level accessibility, synonym-invariance, and sensitivity heatmaps.
 ## Decision gate
 
 Do not implement the latent auxiliary loss after a promising screen alone.
-First compare the full rerun with [the NTP L5 expectation](../../documents/npt_l5_expectation.md)
-and record `go`, `no-go`, or `rerun baseline` in the stage results. Only an
-explicit `go` authorizes the next implementation stage.
+First compare the full rerun with the expectation in this README and record
+`go`, `no-go`, or `rerun baseline` in [RESULTS.md](RESULTS.md). Only an explicit
+`go` authorizes the next implementation stage.

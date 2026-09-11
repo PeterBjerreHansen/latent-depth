@@ -27,7 +27,6 @@ The reusable seams are deliberately small:
 
 - [Stage 00: implementation validation](experiments/00_validation/README.md)
 - [Stage 01: NTP developmental baseline](experiments/01_ntp_development/README.md)
-- [Canonical NTP L5 expectation and decision gate](documents/npt_l5_expectation.md)
 
 Run outputs belong under `runs/` and are intentionally not tracked. Each run
 keeps the resolved config, metrics, and checkpoints needed to inspect or resume

@@ -314,7 +314,7 @@ Run NTP, a fixed shallow target, a fixed deeper target, and a predetermined shal
 For the current implementation round, the ordinary NTP developmental screen
 comes first. Compare its held-out NLL, layer-by-level probes, synonym
 invariance, latent-replacement sensitivity, and transition ordering with the
-repository-level [NTP L5 baseline expectation](npt_l5_expectation.md). Do not implement
+Stage 01 [NTP L5 baseline expectation](../experiments/01_ntp_development/README.md). Do not implement
 the latent auxiliary objective or begin the fixed-target comparison until that
 gate has an explicit **go** decision; a **no-go** or **rerun baseline** result
 means adjusting the baseline regime first.

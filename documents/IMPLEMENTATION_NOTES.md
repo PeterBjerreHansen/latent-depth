@@ -125,8 +125,8 @@ step, it contains only the step and exposure counters.
 The next experimental round is still a baseline decision gate. Before adding
 any latent auxiliary objective or changing the training target, compare the
 training-age trajectory and diagnostics with the repository-level
-[`npt_l5_expectation.md`](npt_l5_expectation.md) and record an explicit
-go/no-go decision in the Stage 01 results report.
+[Stage 01 protocol and expectation](../experiments/01_ntp_development/README.md)
+and record an explicit go/no-go decision in its results report.
 
 ## Scope
 
