@@ -73,6 +73,11 @@ python sweep.py \
 python sweep.py \
   --config configs/next_token_sweep_fixed_exposure.json \
   --output-dir runs/fixed_exposure_pilot
+
+# Large MPS run; validation is throttled for small training pools.
+PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep.py \
+  --config configs/next_token_sweep_large_mps.json \
+  --output-dir runs/next_token_sweep_large_mps
 ```
 
 Plot completed sweep results:
@@ -82,6 +87,12 @@ python plot.py \
   --metrics runs/next_token_sweep/metrics.jsonl \
   --config configs/next_token_sweep.json \
   --output runs/next_token_sweep/curve.png
+
+python plot.py \
+  --metrics runs/next_token_sweep_large_mps/metrics.jsonl \
+  --config configs/next_token_sweep_large_mps.json \
+  --metric test_last_position_nll \
+  --output runs/next_token_sweep_large_mps/last_token_nll.png
 ```
 
 Use `--resume` with `sweep.py` to continue an interrupted sweep. Existing
@@ -104,6 +115,10 @@ with a sample-complexity effect.
 The current code is a foundation for adding latent prediction or auxiliary
 losses later. Such additions should be explicit extensions to the causal
 next-token baseline rather than silently changing the training target.
+
+Current implementation and experiment summaries are in
+[`documents/VALIDATION_RESULTS.md`](documents/VALIDATION_RESULTS.md) and
+[`documents/LARGE_SWEEP_RESULTS.md`](documents/LARGE_SWEEP_RESULTS.md).
 
 ## Representation diagnostics
 
