@@ -121,6 +121,8 @@ class TrainConfig:
     max_updates: Optional[int] = None
     grad_clip: float = 1.0
     eval_every_epochs: int = 1
+    eval_every_updates: Optional[int] = None
+    eval_at_start: bool = False
     num_workers: int = 0
     device: str = "auto"
     deterministic: bool = True
@@ -131,6 +133,8 @@ class TrainConfig:
     def validate(self) -> None:
         if self.batch_size <= 0 or self.max_epochs <= 0 or self.eval_every_epochs <= 0:
             raise ValueError("batch_size, max_epochs, eval_every_epochs must be positive")
+        if self.eval_every_updates is not None and self.eval_every_updates <= 0:
+            raise ValueError("eval_every_updates must be positive when provided")
         if self.max_updates is not None and self.max_updates <= 0:
             raise ValueError("max_updates must be positive when provided")
         if self.checkpoint_every_evals is not None and self.checkpoint_every_evals <= 0:

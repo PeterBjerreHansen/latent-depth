@@ -112,6 +112,12 @@ training-set size receives the same number of dataset exposures. Each result
 records both `global_step` and `total_samples_seen`, so reuse is not confused
 with a sample-complexity effect.
 
+For comparisons across training-set sizes, set `train.eval_every_updates` to
+evaluate at a fixed optimizer-step cadence; it takes precedence over
+`eval_every_epochs`. Set `train.eval_at_start` to record an explicit step-zero
+baseline. Top-level `val_*` metrics describe the validation-selected model,
+while `last_val_*` metrics describe the final training state.
+
 The current code is a foundation for adding latent prediction or auxiliary
 losses later. Such additions should be explicit extensions to the causal
 next-token baseline rather than silently changing the training target.
@@ -130,7 +136,9 @@ post-block stream). Synonym clustering compares an on-grammar forced synonym
 realization with an unrelated in-distribution example whose latent differs.
 Variable sensitivity adds a matched intervention that changes the latent and
 regenerates only its descendant subtree. Diagnostic controls include shuffled
-latent labels and an untrained backbone.
+latent labels and an untrained backbone. Probe reports include the theoretical
+uniform chance level, an empirical majority-class baseline, and balanced
+accuracy so finite-sample class imbalance is visible.
 
 For abstraction level `r`, counted upward from leaves, the first completed
 constituent is measured at position `s**r - 1`; `r=1` is the parent of visible

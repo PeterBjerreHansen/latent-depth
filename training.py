@@ -176,20 +176,24 @@ def evaluate_with_positions(
 ) -> tuple[float, list[float]]:
     """Return mean NTP NLL and its mean for each prediction position."""
     del cfg  # retained in the public signature for evaluation symmetry
+    was_training = model.training
     model.eval()
-    total_examples = 0
-    position_nll: Optional[torch.Tensor] = None
-    for tokens in loader:
-        tokens = tokens.to(device, non_blocking=True)
-        batch_position_nll = _per_position_nll(model, tokens)
-        if position_nll is None:
-            position_nll = torch.zeros(batch_position_nll.size(1), dtype=torch.float64)
-        position_nll += batch_position_nll.detach().sum(dim=0).cpu().to(torch.float64)
-        total_examples += tokens.size(0)
-    if total_examples == 0 or position_nll is None:
-        raise RuntimeError("empty evaluation loader")
-    per_position = (position_nll / total_examples).tolist()
-    return float(sum(per_position) / len(per_position)), per_position
+    try:
+        total_examples = 0
+        position_nll: Optional[torch.Tensor] = None
+        for tokens in loader:
+            tokens = tokens.to(device, non_blocking=True)
+            batch_position_nll = _per_position_nll(model, tokens)
+            if position_nll is None:
+                position_nll = torch.zeros(batch_position_nll.size(1), dtype=torch.float64)
+            position_nll += batch_position_nll.detach().sum(dim=0).cpu().to(torch.float64)
+            total_examples += tokens.size(0)
+        if total_examples == 0 or position_nll is None:
+            raise RuntimeError("empty evaluation loader")
+        per_position = (position_nll / total_examples).tolist()
+        return float(sum(per_position) / len(per_position)), per_position
+    finally:
+        model.train(was_training)
 
 
 def _cpu_state_dict(model: GPT) -> dict[str, torch.Tensor]:
@@ -487,50 +491,28 @@ def train_model(
             "train_loader": train_loader_generator.get_state(),
         }
 
-    stop_training = False
-    for epoch in range(start_epoch, cfg.train.max_epochs + 1):
-        if cfg.train.max_updates is not None and global_step >= cfg.train.max_updates:
-            break
-        model.train()
-        running_loss = 0.0
-        seen = 0
-        for tokens in train_loader:
-            tokens = tokens.to(device, non_blocking=True)
-            _set_warmup_lr(
-                optimizer,
-                base_lr=cfg.optim.learning_rate,
-                update_index=global_step,
-                warmup_updates=warmup_updates,
+    last_evaluated_step: Optional[int] = None
+
+    def record_evaluation(*, epoch: int, running_train_ce: Optional[float]) -> None:
+        """Evaluate, optionally diagnose, select, and checkpoint one state."""
+        nonlocal best_epoch
+        nonlocal best_state
+        nonlocal best_step
+        nonlocal best_val
+        nonlocal eval_count
+        nonlocal last_evaluated_step
+        nonlocal last_train_ce
+        nonlocal last_val_ce
+        nonlocal last_val_nll_by_position
+
+        was_training = model.training
+        try:
+            last_train_ce = evaluate(model, train_eval_loader, cfg, device)
+            last_val_ce, last_val_nll_by_position = evaluate_with_positions(
+                model, val_loader, cfg, device
             )
-            optimizer.zero_grad(set_to_none=True)
-            loss = loss_from_tokens(model, tokens)
-            loss.backward()
-            if cfg.train.grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.train.grad_clip)
-            optimizer.step()
-
-            running_loss += float(loss.item()) * tokens.size(0)
-            seen += tokens.size(0)
-            samples_seen += tokens.size(0)
-            global_step += 1
-
-            # Stop before DataLoader requests another batch, so the sampler
-            # state in a mid-epoch checkpoint is exactly reproducible.
-            if cfg.train.max_updates is not None and global_step >= cfg.train.max_updates:
-                stop_training = True
-                break
-
-        running_train_ce = running_loss / max(seen, 1)
-        should_eval = (
-            epoch % cfg.train.eval_every_epochs == 0
-            or epoch == cfg.train.max_epochs
-            or stop_training
-        )
-        if not should_eval:
-            continue
-
-        last_train_ce = evaluate(model, train_eval_loader, cfg, device)
-        last_val_ce, last_val_nll_by_position = evaluate_with_positions(model, val_loader, cfg, device)
+        finally:
+            model.train(was_training)
         next_eval_count = eval_count + 1
         row: dict[str, Any] = {
             "epoch": epoch,
@@ -565,6 +547,7 @@ def train_model(
             best_state = _cpu_state_dict(model)
         history.append(row)
         eval_count = next_eval_count
+        last_evaluated_step = global_step
 
         if verbose:
             diagnostic_note = " +diagnostics" if "diagnostics" in row else ""
@@ -607,6 +590,78 @@ def train_model(
                     rules=rules,
                 )
 
+    if resume_from is None and cfg.train.eval_at_start:
+        record_evaluation(epoch=0, running_train_ce=None)
+
+    update_based_evaluation = cfg.train.eval_every_updates is not None
+    stop_training = False
+    for epoch in range(start_epoch, cfg.train.max_epochs + 1):
+        if cfg.train.max_updates is not None and global_step >= cfg.train.max_updates:
+            break
+        model.train()
+        running_loss = 0.0
+        seen = 0
+        for tokens in train_loader:
+            tokens = tokens.to(device, non_blocking=True)
+            _set_warmup_lr(
+                optimizer,
+                base_lr=cfg.optim.learning_rate,
+                update_index=global_step,
+                warmup_updates=warmup_updates,
+            )
+            optimizer.zero_grad(set_to_none=True)
+            loss = loss_from_tokens(model, tokens)
+            loss.backward()
+            if cfg.train.grad_clip > 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.train.grad_clip)
+            optimizer.step()
+
+            running_loss += float(loss.item()) * tokens.size(0)
+            seen += tokens.size(0)
+            samples_seen += tokens.size(0)
+            global_step += 1
+
+            reached_update_budget = (
+                cfg.train.max_updates is not None
+                and global_step >= cfg.train.max_updates
+            )
+
+            if update_based_evaluation:
+                update_interval = cfg.train.eval_every_updates
+                if (
+                    global_step % update_interval == 0
+                    or reached_update_budget
+                ):
+                    record_evaluation(
+                        epoch=epoch,
+                        running_train_ce=running_loss / max(seen, 1),
+                    )
+
+            # Stop before DataLoader requests another batch, so the sampler
+            # state in a mid-epoch checkpoint is exactly reproducible.
+            if reached_update_budget:
+                stop_training = True
+                break
+
+        if update_based_evaluation:
+            if epoch == cfg.train.max_epochs and global_step != last_evaluated_step:
+                record_evaluation(
+                    epoch=epoch,
+                    running_train_ce=running_loss / max(seen, 1),
+                )
+            if stop_training:
+                break
+            continue
+
+        running_train_ce = running_loss / max(seen, 1)
+        should_eval = (
+            epoch % cfg.train.eval_every_epochs == 0
+            or epoch == cfg.train.max_epochs
+            or stop_training
+        )
+        if should_eval:
+            record_evaluation(epoch=epoch, running_train_ce=running_train_ce)
+
         if stop_training:
             break
 
@@ -634,6 +689,9 @@ def train_model(
     # Test is touched only after validation-based model selection is complete.
     model.load_state_dict(best_state, strict=True)
     model.to(device)
+    selected_val_ce, selected_val_nll_by_position = evaluate_with_positions(
+        model, val_loader, cfg, device
+    )
     test_ce, test_nll_by_position = evaluate_with_positions(model, test_loader, cfg, device)
 
     theory_bounds = None
@@ -651,17 +709,21 @@ def train_model(
         "best_epoch": best_epoch,
         "best_step": best_step,
         "best_val_ce": best_val,
+        "selected_val_ce": selected_val_ce,
+        "val_ce": selected_val_ce,
         "test_ce": test_ce,
-        "val_last_position_nll": last_val_nll_by_position[-1],
+        "val_last_position_nll": selected_val_nll_by_position[-1],
         "test_last_position_nll": test_nll_by_position[-1],
         "uniform_baseline_nll": math.log(cfg.rhm.v),
         "theory_last_token_nll_bounds": theory_bounds,
         "last_train_ce": last_train_ce,
         "last_val_ce": last_val_ce,
+        "last_val_last_position_nll": last_val_nll_by_position[-1],
         "global_step": global_step,
         "total_samples_seen": samples_seen,
         "max_updates": cfg.train.max_updates,
-        "val_nll_by_position": last_val_nll_by_position,
+        "val_nll_by_position": selected_val_nll_by_position,
+        "last_val_nll_by_position": last_val_nll_by_position,
         "test_nll_by_position": test_nll_by_position,
         "num_parameters": model.num_parameters(),
         "device": str(device),

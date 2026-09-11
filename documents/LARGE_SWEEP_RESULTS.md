@@ -5,6 +5,11 @@ It contains 36 runs: one grammar seed, three model seeds, and twelve training
 pool sizes. Each run used 1,000 optimizer updates and selected the best model
 by validation CE.
 
+These artifacts are the historical epoch-cadence run. The current sweep config
+also supports fixed update-based evaluation and step-zero baselines; reruns
+using it should use a new output directory rather than mixing with these
+results.
+
 Raw results:
 [`runs/next_token_sweep_large_mps/metrics.jsonl`](../runs/next_token_sweep_large_mps/metrics.jsonl)
 

@@ -51,6 +51,12 @@ samples seen. A fixed-exposure sweep can set `samples_per_example` so
 different training-set sizes receive matched data exposure rather than a
 matched update count.
 
+When `train.eval_every_updates` is set, evaluation and checkpoint selection
+use a fixed optimizer-step cadence instead of `eval_every_epochs`. The optional
+`train.eval_at_start` flag records the untrained step-zero baseline. Final
+top-level `val_*` fields are recomputed on the validation-selected model;
+`last_val_*` fields retain the final training-state measurements.
+
 Training is controlled by a fixed `max_updates` budget when one is provided.
 The old near-zero training-CE stopping threshold is intentionally absent: full
 sequence NTP has irreducible conditional uncertainty and can contain repeated
@@ -81,8 +87,10 @@ causal adaptation should not be described as reproducing a specific
 non-causal data2vec experiment.
 
 Diagnostics preserve the model's parameters, train/eval mode, and global RNG
-states. `diagnose.py` regenerates the selected validation/test split from the
-checkpoint's stored grammar and provides an offline parity path.
+states. Probe reports retain the theoretical uniform chance level and also
+report empirical majority and balanced-accuracy baselines. `diagnose.py`
+regenerates the selected validation/test split from the checkpoint's stored
+grammar and provides an offline parity path.
 
 ## Checkpoint semantics
 

@@ -39,6 +39,8 @@
       "max_updates": 1000,
       "grad_clip": 1.0,
       "eval_every_epochs": 100,
+      "eval_every_updates": 100,
+      "eval_at_start": true,
       "num_workers": 0,
       "device": "mps",
       "deterministic": true,

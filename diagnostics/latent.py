@@ -90,8 +90,8 @@ def _fit_linear_probes(
     learning_rate: float,
     seed: int,
     device: torch.device,
-) -> tuple[torch.Tensor, torch.Tensor, int, int]:
-    """Fit independent linear probes for every position/layer pair."""
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
+    """Fit independent probes and return accuracy-aware evaluation baselines."""
     if features.ndim != 4 or labels.ndim != 2:
         raise ValueError("unexpected probe feature/label rank")
     R, J, N, C = features.shape
@@ -132,7 +132,23 @@ def _fit_linear_probes(
         ce = F.cross_entropy(
             logits.reshape(-1, vocab_size), y_eval.reshape(-1), reduction="none"
         ).view(R, J, eval_size).mean(dim=-1).cpu()
-    return accuracy, ce, fit_size, eval_size
+        predictions_cpu = predictions.cpu()
+        labels_cpu = y_eval_base.cpu()
+        majority_accuracy = torch.empty(R, dtype=torch.float64)
+        balanced_accuracy = torch.empty(R, J, dtype=torch.float64)
+        for r in range(R):
+            class_counts = torch.bincount(labels_cpu[r], minlength=vocab_size).to(torch.float64)
+            present = class_counts > 0
+            majority_accuracy[r] = class_counts.max() / eval_size
+            for j in range(J):
+                correct = (predictions_cpu[r, j] == labels_cpu[r]).to(torch.float64)
+                correct_by_class = torch.bincount(
+                    labels_cpu[r], weights=correct, minlength=vocab_size
+                )
+                balanced_accuracy[r, j] = (
+                    (correct_by_class[present] / class_counts[present]).mean()
+                )
+    return accuracy, ce, majority_accuracy, balanced_accuracy, fit_size, eval_size
 
 
 def run_probe_control(
@@ -176,7 +192,7 @@ def run_probe_control(
         if shuffle_labels:
             generator = torch.Generator(device="cpu").manual_seed(cfg.diagnostics.seed + 91_337)
             labels = labels[:, torch.randperm(n, generator=generator)]
-        accuracy, ce, fit_size, eval_size = _fit_linear_probes(
+        accuracy, ce, majority_accuracy, balanced_accuracy, fit_size, eval_size = _fit_linear_probes(
             features,
             labels,
             vocab_size=cfg.rhm.v,
@@ -188,6 +204,10 @@ def run_probe_control(
         return {
             "shuffle_labels": shuffle_labels,
             "chance_accuracy": 1.0 / cfg.rhm.v,
+            "majority_accuracy_by_level": {
+                str(level): float(majority_accuracy[r])
+                for r, level in enumerate(levels)
+            },
             "fit_examples": fit_size,
             "eval_examples": eval_size,
             "levels": levels,
@@ -198,6 +218,10 @@ def run_probe_control(
             },
             "ce_by_level": {
                 str(level): [float(x) for x in ce[r].tolist()]
+                for r, level in enumerate(levels)
+            },
+            "balanced_accuracy_by_level": {
+                str(level): [float(x) for x in balanced_accuracy[r].tolist()]
                 for r, level in enumerate(levels)
             },
         }
@@ -366,7 +390,7 @@ def run_latent_diagnostics(
             "layer_convention": "0=embedding stream; j>0=post Transformer block j; final LN excluded",
         }
         if cfg.diagnostics.linear_probe:
-            accuracy, ce, fit_size, eval_size = _fit_linear_probes(
+            accuracy, ce, majority_accuracy, balanced_accuracy, fit_size, eval_size = _fit_linear_probes(
                 original_features,
                 labels,
                 vocab_size=cfg.rhm.v,
@@ -377,6 +401,10 @@ def run_latent_diagnostics(
             )
             probe: dict[str, Any] = {
                 "chance_accuracy": 1.0 / cfg.rhm.v,
+                "majority_accuracy_by_level": {
+                    str(level): float(majority_accuracy[r])
+                    for r, level in enumerate(levels)
+                },
                 "probe_steps": cfg.diagnostics.probe_steps,
                 "probe_lr": cfg.diagnostics.probe_lr,
                 "fit_examples": fit_size,
@@ -387,6 +415,10 @@ def run_latent_diagnostics(
                 probe["by_level"][str(level)] = {
                     "completion_position": positions[r_index],
                     "accuracy_by_layer": [float(x) for x in accuracy[r_index].tolist()],
+                    "balanced_accuracy_by_layer": [
+                        float(x) for x in balanced_accuracy[r_index].tolist()
+                    ],
+                    "majority_accuracy": float(majority_accuracy[r_index]),
                     "ce_by_layer": [float(x) for x in ce[r_index].tolist()],
                 }
             output["linear_probe"] = probe

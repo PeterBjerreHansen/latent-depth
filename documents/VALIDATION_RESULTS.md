@@ -3,10 +3,15 @@
 These results were run on an Apple Silicon Mac with PyTorch 2.14.0 and MPS,
 using `PYTORCH_ENABLE_MPS_FALLBACK=0` for the MPS runs.
 
+The reported learning and large-sweep artifacts are historical runs from
+before fixed update-based evaluation was added to the configs. The current
+configs use that schedule for future reruns; existing output directories should
+not be resumed or mixed with those reruns.
+
 ## Implementation gates
 
 ```text
-34 tests passed
+35 tests passed
 compileall passed
 data expansion oracle passed
 shifted-loss reference passed

@@ -9,8 +9,10 @@ from diagnose import diagnose_checkpoint
 from rhm.dataset import LeafSequenceDataset, build_rhm_bundle
 from training import (
     build_model,
+    evaluate_with_positions,
     load_model_from_checkpoint,
     load_training_state,
+    make_loader,
     save_checkpoint,
     train_model,
 )
@@ -151,7 +153,60 @@ def test_training_metrics_report_last_position_and_exposure_baselines(tmp_path: 
     assert metrics["uniform_baseline_nll"] == pytest.approx(torch.log(torch.tensor(float(cfg.rhm.v))).item())
     assert metrics["total_samples_seen"] == cfg.train.max_updates * cfg.train.batch_size
     assert metrics["history"][-1]["samples_seen"] == metrics["total_samples_seen"]
-    assert metrics["history"][-1]["val_last_position_nll"] == metrics["val_last_position_nll"]
+    assert metrics["history"][-1]["val_last_position_nll"] == metrics["last_val_last_position_nll"]
+
+    best_model, _, _ = load_model_from_checkpoint(tmp_path / "best.pt")
+    best_model.train()
+    val_loader = make_loader(
+        LeafSequenceDataset(bundle.val.leaves),
+        batch_size=cfg.train.batch_size,
+        shuffle=False,
+        num_workers=0,
+        seed=0,
+        device=torch.device("cpu"),
+    )
+    selected_val_ce, selected_val_positions = evaluate_with_positions(
+        best_model, val_loader, cfg, torch.device("cpu")
+    )
+    assert best_model.training
+    assert metrics["val_ce"] == pytest.approx(selected_val_ce)
+    assert metrics["selected_val_ce"] == pytest.approx(selected_val_ce)
+    assert metrics["val_nll_by_position"] == pytest.approx(selected_val_positions)
+    assert metrics["val_last_position_nll"] == pytest.approx(selected_val_positions[-1])
+
+
+def test_update_based_evaluation_records_step_zero_and_fixed_steps(tmp_path: Path):
+    cfg = _tiny_cfg()
+    cfg.train.max_epochs = 10
+    cfg.train.max_updates = 5
+    cfg.train.eval_every_updates = 2
+    cfg.train.eval_at_start = True
+    cfg.train.save_checkpoints = False
+    bundle = build_rhm_bundle(
+        v=cfg.rhm.v,
+        n=cfg.rhm.n,
+        m=cfg.rhm.m,
+        s=cfg.rhm.s,
+        L=cfg.rhm.L,
+        rule_seed=cfg.rhm.rule_seed,
+        train_seed=cfg.rhm.train_seed,
+        val_seed=cfg.rhm.val_seed,
+        test_seed=cfg.rhm.test_seed,
+        train_size=cfg.data.train_size,
+        val_size=cfg.data.val_size,
+        test_size=cfg.data.test_size,
+    )
+    metrics = train_model(
+        cfg,
+        LeafSequenceDataset(bundle.train.leaves),
+        LeafSequenceDataset(bundle.val.leaves),
+        LeafSequenceDataset(bundle.test.leaves),
+        output_dir=tmp_path,
+        verbose=False,
+    )
+    assert [row["global_step"] for row in metrics["history"]] == [0, 2, 4, 5]
+    assert metrics["history"][0]["running_train_ce"] is None
+    assert metrics["global_step"] == 5
 
 
 def test_checkpoint_records_mps_rng_slot(tmp_path: Path):
@@ -372,6 +427,8 @@ def test_exact_resume_matches_uninterrupted_training(tmp_path: Path):
     cfg.train.batch_size = 16
     cfg.train.max_updates = 4
     cfg.train.max_epochs = 4
+    cfg.train.eval_every_updates = 2
+    cfg.train.eval_at_start = True
     cfg.train.deterministic_strict = True
     bundle = build_rhm_bundle(
         v=cfg.rhm.v, n=cfg.rhm.n, m=cfg.rhm.m, s=cfg.rhm.s, L=cfg.rhm.L,
