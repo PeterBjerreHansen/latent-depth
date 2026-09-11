@@ -17,7 +17,7 @@ from config import SweepConfig
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--metrics", required=True, help="metrics.jsonl from sweep.py")
+    parser.add_argument("--metrics", required=True, help="metrics.jsonl from sweep_data_size.py")
     parser.add_argument("--config", required=True, help="same sweep config used for training")
     parser.add_argument("--output", required=True)
     parser.add_argument(

@@ -1,7 +1,7 @@
 """Random Hierarchy Model (RHM) data generation.
 
 Adapted from fracagnetta/random-hierarchy-model, datasets/random_hierarchy_model.py
-(provenance documented in ../documents/PROVENANCE.md), under the MIT License.
+(origin and licensing documented in ../documents/PROVENANCE.md), under the MIT License.
 
 The core generative process is intentionally kept faithful to upstream. Two small
 changes are deliberate:

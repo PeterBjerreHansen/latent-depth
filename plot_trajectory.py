@@ -79,6 +79,22 @@ def _draw_heatmap(
     axis.figure.colorbar(image, ax=axis, pad=0.01)
 
 
+def _position_history(history: list[dict[str, Any]]) -> tuple[np.ndarray, np.ndarray]:
+    """Return validation NLL by prediction position over training age."""
+    rows = [row for row in history if "val_nll_by_position" in row]
+    if not rows:
+        raise RuntimeError("metrics history contains no per-position validation NLL")
+    widths = {len(row["val_nll_by_position"]) for row in rows}
+    if len(widths) != 1:
+        raise RuntimeError("metrics history has inconsistent per-position NLL lengths")
+    steps = np.asarray([int(row["global_step"]) for row in rows])
+    matrix = np.asarray(
+        [[float(value) for value in row["val_nll_by_position"]] for row in rows],
+        dtype=float,
+    )
+    return matrix, steps
+
+
 def plot_trajectory(
     trajectory: str | Path,
     metrics: str | Path,
@@ -93,7 +109,7 @@ def plot_trajectory(
     history = metric_data.get("history", [])
     levels = _levels(records)
 
-    figure, axes = plt.subplots(4, 1, figsize=(10.0, 16.0))
+    figure, axes = plt.subplots(5, 1, figsize=(10.0, 20.0))
     history_steps = np.asarray([int(row["global_step"]) for row in history])
     val_ce = np.asarray([float(row["val_ce"]) for row in history])
     val_last = np.asarray([float(row["val_last_position_nll"]) for row in history])
@@ -103,8 +119,26 @@ def plot_trajectory(
     axes[0].set_title("Vanilla NTP training-age trajectory")
     axes[0].legend(fontsize=8)
 
+    try:
+        position_nll, position_steps = _position_history(history)
+    except RuntimeError as exc:
+        axes[1].text(0.5, 0.5, str(exc), ha="center", va="center")
+        axes[1].set_axis_off()
+    else:
+        image = axes[1].imshow(position_nll, aspect="auto", interpolation="nearest")
+        axes[1].set_yticks(np.arange(len(position_steps)))
+        axes[1].set_yticklabels([str(step) for step in position_steps])
+        axes[1].set_xticks(np.arange(position_nll.shape[1]))
+        axes[1].set_xticklabels(
+            [str(position) for position in range(1, position_nll.shape[1] + 1)]
+        )
+        axes[1].set_ylabel("optimizer step")
+        axes[1].set_xlabel("prediction position")
+        axes[1].set_title("Validation NLL by prediction position")
+        axes[1].figure.colorbar(image, ax=axes[1], pad=0.01)
+
     _draw_heatmap(
-        axes[1],
+        axes[2],
         records,
         "linear_probe",
         levels,
@@ -112,20 +146,20 @@ def plot_trajectory(
         balanced=True,
     )
     _draw_heatmap(
-        axes[2],
+        axes[3],
         records,
         "synonym_clustering",
         levels,
         title="Synonym invariance by layer and level",
     )
     _draw_heatmap(
-        axes[3],
+        axes[4],
         records,
         "variable_sensitivity",
         levels,
         title="Latent-replacement sensitivity by layer and level",
     )
-    axes[3].set_xlabel("hierarchy level")
+    axes[4].set_xlabel("hierarchy level")
 
     for axis in axes:
         axis.grid(alpha=0.25)

@@ -1,23 +1,23 @@
 {
   "experiment": {
     "rhm": {
-      "v": 32,
-      "n": 32,
-      "m": 8,
+      "v": 16,
+      "n": 16,
+      "m": 4,
       "s": 2,
-      "L": 3,
+      "L": 5,
       "rule_seed": 0,
       "train_seed": 1000,
       "val_seed": 2000,
       "test_seed": 3000
     },
     "data": {
-      "train_size": 262144,
-      "val_size": 32768,
-      "test_size": 32768
+      "train_size": 65536,
+      "val_size": 16384,
+      "test_size": 16384
     },
     "model": {
-      "n_layer": 3,
+      "n_layer": 8,
       "n_head": 8,
       "n_embd": 256,
       "dropout": 0.0,
@@ -36,20 +36,27 @@
     "train": {
       "batch_size": 256,
       "max_epochs": 1000,
-      "max_updates": 1000,
+      "max_updates": 5000,
       "grad_clip": 1.0,
       "eval_every_epochs": 100,
-      "eval_every_updates": 100,
+      "eval_every_updates": 250,
       "eval_at_start": true,
       "num_workers": 0,
       "device": "mps",
       "deterministic": true,
       "deterministic_strict": false,
-      "save_checkpoints": false
+      "save_checkpoints": true,
+      "checkpoint_every_updates": 500
     },
     "model_seed": 0
   },
-  "train_sizes": [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144],
-  "grammar_seeds": [0],
-  "model_seeds": [0, 1, 2]
+  "train_sizes": [65536],
+  "grammar_seeds": [0, 1],
+  "model_seeds": [0, 1],
+  "replicates": [
+    {"grammar_seed": 0, "model_seed": 0},
+    {"grammar_seed": 0, "model_seed": 1},
+    {"grammar_seed": 1, "model_seed": 0},
+    {"grammar_seed": 1, "model_seed": 1}
+  ]
 }

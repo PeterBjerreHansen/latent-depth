@@ -2,6 +2,7 @@
 
 **Status:** pre-run expectation for the next experimental round
 **Decision:** compare the completed baseline with this document before implementing the latent auxiliary loss
+**Eventual report:** the Stage 01 [results report](../experiments/01_ntp_development/RESULTS.md) must use this document as its pre-run specification and record the final decision against it
 
 ## Purpose
 
@@ -15,13 +16,19 @@ part of the project hypothesis. We should not implement or interpret the
 latent auxiliary loss until the baseline results have been compared with these
 expectations and the decision has been recorded.
 
-This document is the companion decision gate for the current implementation and experimental work. Read it alongside the [implementation notes](IMPLEMENTATION_NOTES.md), [recommended next runs](RESEARCH_NEXT_RUNS.md), [validation plan](VALIDATION.md), [validation results](VALIDATION_RESULTS.md), and [project proposal](writeup_v2.md). It applies specifically to the ordinary-NTP developmental screen before the latent auxiliary objective is added.
+This document is the companion decision gate for the current implementation and experimental work. Read it alongside the [Stage 01 protocol](../experiments/01_ntp_development/README.md), its [current results](../experiments/01_ntp_development/RESULTS.md), the [implementation notes](IMPLEMENTATION_NOTES.md), the [validation plan](VALIDATION.md), the [Stage 00 results](../experiments/00_validation/RESULTS.md), and the [project proposal](writeup_v2.md). It applies specifically to the ordinary-NTP developmental screen before the latent auxiliary objective is added.
+
+The eventual Stage 01 results report is downstream of this document. It should
+report the required NTP and diagnostic quantities on the specified training-age
+axis, evaluate the same acquisition rule, and state `go`, `no-go`, or `rerun
+baseline` against these expectations. New criteria must be agreed before a
+rerun, not introduced after inspecting its results.
 
 ## Expected setting
 
 The intended developmental screen is the binary, depth-five task with
 `s=2`, using ordinary causal NTP only. The current starting configuration is
-[`configs/developmental_l5_screen.json`](../configs/developmental_l5_screen.json);
+[`experiments/01_ntp_development/configs/regime_search.json`](../experiments/01_ntp_development/configs/regime_search.json);
 the canonical training-pool size `P` should be frozen before confirmation runs
 and not chosen separately for each seed.
 
@@ -101,7 +108,9 @@ C_{j,r}=1-\frac{d_{\mathrm{syn}}}{d_{\mathrm{non}}}
 should move from its initial baseline toward positive values at approximately
 the same training ages at which `H_r` becomes accessible. A probe that rises
 while clustering remains flat near zero is evidence for decodability, not yet
-for the abstraction of interest.
+for the abstraction of interest. For a full acquisition claim, accessibility,
+invariance, and sensitivity must all hold at the same residual-stream layer
+`j`; values from different layers may not be combined.
 
 ### 4. Sensitivity to changing the latent
 

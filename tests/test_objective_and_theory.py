@@ -7,7 +7,7 @@ import torch
 
 from config import ExperimentConfig, SweepConfig
 from rhm.theory import loss_upper_bounds, sample_complexities
-from sweep import fixed_exposure_budget
+from sweep_data_size import fixed_exposure_budget
 from training import input_block_size, objective_inputs
 
 
@@ -58,9 +58,9 @@ def test_loss_bounds_are_monotone_improving():
 
 
 def test_sweep_accepts_fixed_exposure_budget():
-    sweep = SweepConfig.from_json("configs/next_token_sweep.json")
+    sweep = SweepConfig.from_json("experiments/00_validation/configs/data_sweep.json")
     assert sweep.samples_per_example is None
-    sweep = SweepConfig.from_json("configs/next_token_sweep_fixed_exposure.json")
+    sweep = SweepConfig.from_json("experiments/00_validation/configs/fixed_exposure.json")
     assert sweep.samples_per_example == 8.0
 
 
@@ -76,7 +76,9 @@ def test_fixed_exposure_budget_uses_complete_dataset_passes():
 
 
 def test_sweep_rejects_fractional_exposure_target(tmp_path: Path):
-    config = json.loads(Path("configs/next_token_sweep.json").read_text(encoding="utf-8"))
+    config = json.loads(
+        Path("experiments/00_validation/configs/data_sweep.json").read_text(encoding="utf-8")
+    )
     config["samples_per_example"] = 1.5
     path = tmp_path / "fractional.json"
     path.write_text(json.dumps(config), encoding="utf-8")

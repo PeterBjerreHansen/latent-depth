@@ -12,7 +12,6 @@ from pathlib import Path
 import torch
 
 from config import SweepConfig
-from provenance import file_sha256, git_provenance
 from rhm.dataset import LeafSequenceDataset, build_rhm_bundle
 from training import train_model
 
@@ -58,7 +57,7 @@ def fixed_exposure_budget(
 def _validate_resume_state(
     *, metrics_path: Path, snapshot_path: Path, snapshot: dict[str, object], resume: bool
 ) -> None:
-    """Reject result reuse when the sweep provenance cannot be verified."""
+    """Reject result reuse when the saved sweep configuration does not match."""
     has_metrics = metrics_path.exists() and metrics_path.stat().st_size > 0
     if has_metrics and not resume:
         raise RuntimeError(
@@ -90,8 +89,6 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     metrics_path = out / "metrics.jsonl"
     snapshot_path = out / "sweep_config.json"
-    config_path = Path(args.config).resolve()
-    provenance = git_provenance(Path(__file__).resolve().parent)
     snapshot = {
         "experiment": sweep.experiment.to_dict(),
         "train_sizes": sweep.train_sizes,
@@ -103,9 +100,6 @@ def main() -> None:
             else None
         ),
         "samples_per_example": sweep.samples_per_example,
-        "input_config": str(config_path),
-        "input_config_sha256": file_sha256(config_path),
-        **provenance,
         "effective_train_settings": {
             str(P): {
                 "batch_size": min(sweep.experiment.train.batch_size, P),
@@ -221,7 +215,6 @@ def main() -> None:
                         "test_seed": cfg.rhm.test_seed,
                         "effective_max_updates": cfg.train.max_updates,
                         "samples_per_example": sweep.samples_per_example,
-                        "code_commit": provenance["code_commit"],
                     }
                 )
                 with open(metrics_path, "a", encoding="utf-8") as f:

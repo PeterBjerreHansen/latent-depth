@@ -556,6 +556,7 @@ def train_model(
             "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
             "train_ce": last_train_ce,
             "val_ce": last_val_ce,
+            "val_nll_by_position": [float(value) for value in last_val_nll_by_position],
             "val_last_position_nll": last_val_nll_by_position[-1],
             "lr": float(optimizer.param_groups[0]["lr"]),
         }

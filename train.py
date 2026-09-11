@@ -10,7 +10,6 @@ from pathlib import Path
 import torch
 
 from config import ExperimentConfig
-from provenance import file_sha256, git_provenance
 from rhm.dataset import LeafSequenceDataset, build_rhm_bundle
 from training import train_model
 
@@ -42,17 +41,6 @@ def main() -> None:
     torch.save(bundle.rules, out / "rules.pt")
     with open(out / "config.json", "w", encoding="utf-8") as f:
         json.dump(cfg.to_dict(), f, indent=2)
-    with open(out / "provenance.json", "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "input_config": str(Path(args.config).resolve()),
-                "input_config_sha256": file_sha256(args.config),
-                **git_provenance(Path(__file__).resolve().parent),
-            },
-            f,
-            indent=2,
-        )
-
     print("RHM sequence length:", cfg.rhm.s**cfg.rhm.L)
 
     metrics = train_model(

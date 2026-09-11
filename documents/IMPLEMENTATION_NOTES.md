@@ -101,8 +101,8 @@ report empirical majority and balanced-accuracy baselines. `diagnose.py`
 regenerates the selected validation/test split from the checkpoint's stored
 grammar and provides an offline parity path. `diagnose_trajectory.py` applies
 that observer to every exact-step snapshot, while `plot_trajectory.py` plots
-NTP loss, accessibility, synonym invariance, and latent-replacement
-sensitivity against optimizer updates.
+validation NLL by prediction position plus accessibility, synonym invariance,
+and latent-replacement sensitivity against optimizer updates.
 
 ## Checkpoint semantics
 
@@ -115,16 +115,18 @@ the update/epoch budget; if it supplies a grammar, it must match the stored
 grammar exactly. The sampler stops immediately after the requested update so a
 mid-epoch resume does not skip a prefetched batch.
 
-Sweep outputs also record the input-config digest, code revision, worktree state,
-and effective per-size settings; each run directory contains the exact
-resolved experiment config used for that run. Update-based checkpoint metadata
-always describes the checkpoint's own optimizer step; when no evaluation occurs
-at that step, it contains only the step and exposure counters.
+Sweep outputs record a simple semantic `sweep_config.json` with the resolved
+experiment and effective per-size settings; each run directory contains the
+exact resolved `config.json` used for that run. This is the intended bookkeeping
+for the small rerunnable experiments. Update-based checkpoint metadata always
+describes the checkpoint's own optimizer step; when no evaluation occurs at that
+step, it contains only the step and exposure counters.
 
 The next experimental round is still a baseline decision gate. Before adding
 any latent auxiliary objective or changing the training target, compare the
 training-age trajectory and diagnostics with the repository-level
-[`expectation.md`](expectation.md) and record an explicit go/no-go decision.
+[`npt_l5_expectation.md`](npt_l5_expectation.md) and record an explicit
+go/no-go decision in the Stage 01 results report.
 
 ## Scope
 

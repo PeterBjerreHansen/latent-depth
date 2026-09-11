@@ -5,7 +5,7 @@
 The migration to the nanoGPT model should be checked with:
 
 ```bash
-python -m compileall -q config.py provenance.py training.py train.py sweep.py plot.py diagnose.py diagnose_trajectory.py plot_trajectory.py validate_implementation.py nanogpt rhm diagnostics tests
+python -m compileall -q config.py training.py train.py sweep_data_size.py plot.py diagnose.py diagnose_trajectory.py plot_trajectory.py validate_implementation.py nanogpt rhm diagnostics tests
 python -m pytest -q
 ```
 
@@ -17,7 +17,7 @@ synthetic probe recovery, shuffled-label controls, clustering endpoints,
 checkpoint round trips, selected-vs-final validation metrics, exact mid-epoch
 resume, update-based step-zero evaluation, grammar validation on resume,
 complete fixed-exposure budgeting, fit-half probe standardization, token
-accounting, sweep resume provenance, exact update-based checkpoint boundaries,
+accounting, sweep resume configuration, exact update-based checkpoint boundaries,
 empirical probe baselines, online vs.
 offline diagnostics parity, and an end-to-end training smoke test with a fixed
 update budget. Training checkpoints also carry the optimizer, CPU, CUDA, MPS,

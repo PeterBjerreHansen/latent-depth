@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from sweep import _validate_resume_state
+from sweep_data_size import _validate_resume_state
 
 
 def test_resume_requires_sweep_snapshot_for_existing_metrics(tmp_path):

@@ -112,6 +112,10 @@ def test_end_to_end_training_smoke(tmp_path: Path):
 
     assert metrics["global_step"] == 3
     assert len(metrics["history"]) == 2
+    assert all(
+        len(row["val_nll_by_position"]) == cfg.rhm.s**cfg.rhm.L - 1
+        for row in metrics["history"]
+    )
     assert len(metrics["val_nll_by_position"]) == cfg.rhm.s**cfg.rhm.L - 1
     assert len(metrics["test_nll_by_position"]) == cfg.rhm.s**cfg.rhm.L - 1
     assert "converged" not in metrics
