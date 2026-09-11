@@ -395,24 +395,23 @@ def load_training_state(
     path: str | Path,
     device: str = "cpu",
 ) -> tuple[GPT, ExperimentConfig, torch.optim.Optimizer, dict[str, Any]]:
-    """Load NTP model, optimizer, and RNG state for compatibility tests.
+    """Load an NTP model, optimizer, and RNG state for exact continuation.
 
-    Auxiliary runs should be resumed through :func:`train_model`, which also
-    restores the predictor module.  This helper deliberately retains its
-    historical four-value interface.
+    Auxiliary runs must be resumed through :func:`train_model`, which restores
+    the predictor module as part of the complete training state. This helper
+    intentionally exposes only the NTP continuation state.
     """
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
     cfg = ExperimentConfig.from_dict(ckpt["config"])
+    if cfg.auxiliary.mode != "none":
+        raise ValueError(
+            "load_training_state only supports NTP checkpoints; "
+            "resume auxiliary runs through train_model"
+        )
     resolved_device = torch.device(device)
     model = build_model(cfg).to(resolved_device)
     model.load_state_dict(ckpt["model"], strict=True)
-    predictor = build_auxiliary_predictor(cfg, resolved_device)
-    if predictor is not None:
-        predictor_state = ckpt.get("predictor")
-        if predictor_state is None:
-            raise ValueError("auxiliary checkpoint is missing predictor state")
-        predictor.load_state_dict(predictor_state, strict=True)
-    optimizer = _make_optimizer(model, cfg, predictor)
+    optimizer = _make_optimizer(model, cfg)
     optimizer.load_state_dict(ckpt["optimizer"])
     restore_rng_state(ckpt["rng"])
     return model, cfg, optimizer, ckpt

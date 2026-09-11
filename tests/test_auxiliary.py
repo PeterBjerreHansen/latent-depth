@@ -1,6 +1,7 @@
 import copy
 from pathlib import Path
 
+import pytest
 import torch
 
 from auxiliary import (
@@ -16,6 +17,7 @@ from training import (
     _clip_parameters,
     _make_optimizer,
     build_model,
+    load_training_state,
     seed_everything,
     train_model,
     training_losses,
@@ -283,6 +285,22 @@ def test_offline_diagnostics_ignore_predictor_and_work_on_auxiliary_checkpoint(t
     assert result["diagnostics"]["levels"] == [1, 2]
 
 
+def test_load_training_state_rejects_auxiliary_checkpoint(tmp_path: Path):
+    cfg = _cfg(auxiliary=True, target_layer=1)
+    cfg.train.max_updates = 1
+    bundle = _bundle(cfg)
+    train_model(
+        cfg,
+        *_datasets(bundle),
+        output_dir=tmp_path,
+        rules=bundle.rules,
+        verbose=False,
+    )
+
+    with pytest.raises(ValueError, match="only supports NTP checkpoints"):
+        load_training_state(tmp_path / "last.pt")
+
+
 def test_target_depth_sweep_config_accepts_ntp_and_fixed_layers(tmp_path: Path):
     path = tmp_path / "sweep.json"
     payload = {
@@ -295,4 +313,3 @@ def test_target_depth_sweep_config_accepts_ntp_and_fixed_layers(tmp_path: Path):
     path.write_text(json.dumps(payload), encoding="utf-8")
     sweep = TargetDepthSweepConfig.from_json(path)
     assert sweep.target_layers == [None, 0, 1, 2]
-

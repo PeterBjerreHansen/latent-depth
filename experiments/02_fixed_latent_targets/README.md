@@ -43,7 +43,10 @@ Ground-truth RHM latents H1--H4 are never used in the training loss. They remain
 observer diagnostics only. The name “next latent” refers to a model residual
 stream target here; this is not direct ground-truth latent supervision. Because
 the residual streams also carry token and position information, especially at
-`j=0`, the report must include the existing surface-token and position controls.
+`j=0`, interpret a strong shallow-target result cautiously. The first screen
+uses the existing shuffled-label and untrained-backbone controls; explicit
+surface-token or position controls are a follow-up only if the results motivate
+them.
 
 The predictor is identical in every auxiliary arm:
 

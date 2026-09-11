@@ -143,10 +143,12 @@ for the existing offline diagnostics.
 
 `sweep_target_depth.py` runs the NTP null arm and fixed target depths with the
 same grammar/model seeds and data ordering. The Stage-02 report must compare
-H2/H3 same-layer acquisition times, layerwise probe decodability, surface-token
-and position controls, NTP validation cost, and auxiliary/total loss curves.
-Do not add adaptive switching or target mixtures until a fixed-target result is
-replicated.
+H2/H3 same-layer acquisition times, layerwise probe decodability, the existing
+shuffled-label and untrained-backbone controls, NTP validation cost, and
+auxiliary/total loss curves. Residual targets also carry token and position
+information, especially at `j=0`; explicit surface controls are a follow-up if
+the first screen makes that confound important. Do not add adaptive switching
+or target mixtures until a fixed-target result is replicated.
 
 The Stage-01 baseline gate is complete. Before adding adaptive target policies
 or changing the auxiliary objective, compare the fixed-target training-age
