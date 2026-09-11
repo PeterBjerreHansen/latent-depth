@@ -13,9 +13,10 @@ rerun with the criteria below before proceeding to any auxiliary objective.
 - Binary RHM with `v=n=16`, `m=4`, `s=2`, and `L=5`.
 - Ordinary causal NTP only; no latent auxiliary loss.
 - Eight Transformer blocks, eight heads, width 256, batch size 256.
-- Training sizes `P ∈ {16,384, 32,768, 65,536}` for the regime search.
-- Confirmation rerun at `P=65,536` with the full 2 × 2 grammar/model seed
-  factorial in `configs/replication.json`.
+- The required confirmation rerun is fixed at `P=65,536` with the full 2 × 2
+  grammar/model seed factorial in `configs/replication.json`.
+- `configs/regime_search.json` is retained for optional fresh artifacts only;
+  the three-point `P` search is not part of the required decision.
 - Evaluation every 250 optimizer updates, including step zero.
 - Exact checkpoint snapshots every 500 updates through step 5,000.
 - Offline layer-by-level diagnostics for the embedding stream and all eight
@@ -94,13 +95,29 @@ the same training ages at which `H_r` becomes accessible. A probe that rises
 while clustering remains flat near zero is evidence for decodability, not yet
 for the abstraction of interest. For a full acquisition claim, accessibility,
 invariance, and sensitivity must all hold at the same residual-stream layer
-`j`; values from different layers may not be combined.
+`j`; values from different layers may not be combined. Same-layer A+C is the
+primary developmental evidence. H1 is useful supporting context, but its probe
+signal is confounded by local token identity and is not the core clock.
 
 #### Sensitivity to changing the latent
 
 Synonym invariance must not be explained by representation collapse. Changing
 `H_r` should still produce a substantial representation change, measured by
-the matched latent-replacement sensitivity control.
+the matched latent-replacement sensitivity control. Report the raw same-layer
+values `d_syn`, `d_variable`, and `d_non`, the legacy ratio
+`S=d_variable/d_non`, and the normalized contrast
+
+\[
+Q_{j,r}=\frac{d_{\mathrm{variable}}-d_{\mathrm{syn}}}
+              {d_{\mathrm{non}}+\epsilon}.
+\]
+
+The old `S >= 1.005` threshold is retained as a secondary continuity check,
+not as an independent acquisition hurdle. Positive `Q` or
+`d_variable > d_syn` at the same layer supports the interpretation that latent
+replacement matters more than a synonymous surface change. A borderline or
+noisy contrast should be reported as such rather than converted into a new
+hard threshold after seeing the results.
 
 #### Ordered, replicated transitions
 
@@ -119,16 +136,17 @@ and `H2` is the minimum useful result.
 ### Proceed to the latent auxiliary loss only if
 
 - held-out NTP improves strongly and still has headroom after `H1` is learned;
-- `H1` and `H2` are convincingly acquired, with `H3` at least beginning to
-  emerge if the run budget permits;
+- `H2` is convincingly acquired and the later `H3` transition is visible, with
+  the H2-to-H3 ordering replicated across grammar/model seeds;
 - acquisition times are visibly separated rather than all appearing at the
   first evaluation;
-- each claimed transition is supported by balanced accessibility, positive
-  synonym invariance, and latent-replacement sensitivity at the same layer;
+- each claimed transition is supported primarily by same-layer balanced
+  accessibility plus positive synonym invariance; the raw sensitivity contrast
+  shows no persistent evidence of collapse;
 - the qualitative `H1 -> H2` ordering is not peculiar to one grammar/model
   seed pair; and
-- there is a useful transition checkpoint where `H1` is established, `H2` is
-  emerging, `H3` is mostly absent, and NTP is still improving.
+- there is a useful transition checkpoint where H2 is established, H3 is
+  emerging, and NTP is still improving. H1 invariance is supporting context.
 
 If these conditions hold, freeze the baseline protocol and implement the first
 auxiliary comparison as separate from-scratch runs:
@@ -156,7 +174,9 @@ comparison produces a meaningful developmental clock.
 These outcomes are informative baseline failures, not reasons to add the
 auxiliary objective anyway. Adjust the dataset size, training budget,
 evaluation cadence, or model capacity, then rerun the NTP baseline against this
-same expectation.
+same expectation. Persistent failure of the raw sensitivity contrast should be
+reported as a qualification of the abstraction claim, not hidden by selecting
+the largest legacy `S` value from another layer.
 
 ### Reporting requirements
 
@@ -175,28 +195,18 @@ The report must explicitly state **go**, **no-go**, or **rerun baseline** agains
 this section. Only a **go** decision authorizes the latent auxiliary-loss
 implementation.
 
-## Rerun
+## Required rerun
 
 Run from the repository root, on MPS when available:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_data_size.py \
-  --config experiments/01_ntp_development/configs/regime_search.json \
-  --output-dir runs/01_ntp_development/regime_search
-
-PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_data_size.py \
   --config experiments/01_ntp_development/configs/replication.json \
   --output-dir runs/01_ntp_development/rerun
-
-python plot.py \
-  --metrics runs/01_ntp_development/regime_search/metrics.jsonl \
-  --config experiments/01_ntp_development/configs/regime_search.json \
-  --metric test_last_position_nll \
-  --output runs/01_ntp_development/regime_search/last_token_nll.png
 ```
 
-After the runs finish, diagnose every exact-step checkpoint for a selected
-replicate:
+After the sweep finishes, diagnose every exact-step checkpoint for all four
+confirmation runs:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
@@ -204,10 +214,40 @@ PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
   --output-dir runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/trajectory \
   --controls
 
+PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
+  --run-dir runs/01_ntp_development/rerun/grammar_0/model_1/P_65536 \
+  --output-dir runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/trajectory \
+  --controls
+
+PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
+  --run-dir runs/01_ntp_development/rerun/grammar_1/model_0/P_65536 \
+  --output-dir runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/trajectory \
+  --controls
+
+PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
+  --run-dir runs/01_ntp_development/rerun/grammar_1/model_1/P_65536 \
+  --output-dir runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/trajectory \
+  --controls
+
 python plot_trajectory.py \
   --trajectory runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/trajectory/trajectory.json \
   --metrics runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/metrics.json \
   --output runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/trajectory/trajectory.png
+
+python plot_trajectory.py \
+  --trajectory runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/trajectory/trajectory.json \
+  --metrics runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/metrics.json \
+  --output runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/trajectory/trajectory.png
+
+python plot_trajectory.py \
+  --trajectory runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/trajectory/trajectory.json \
+  --metrics runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/metrics.json \
+  --output runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/trajectory/trajectory.png
+
+python plot_trajectory.py \
+  --trajectory runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/trajectory/trajectory.json \
+  --metrics runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/metrics.json \
+  --output runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/trajectory/trajectory.png
 ```
 
 The trajectory plot includes validation NLL by prediction position and the

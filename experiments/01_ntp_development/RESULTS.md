@@ -1,17 +1,17 @@
 # Developmental L5 vanilla-NTP baseline
 
-**Status:** screen and minimal replication complete  
-**Decision:** rerun the baseline before implementing the auxiliary loss; the layerwise `A/C` pattern is encouraging, but the full `A/C/S` gate is not yet replicated
+**Status:** screen, minimal replication, and full 2 × 2 confirmation rerun complete
+**Decision:** go for the first fixed-target latent auxiliary-loss comparison; H4 is not acquired and the legacy `S` ratio remains a secondary continuity check
 This is the Stage 01 report paired with the expectation in the stage README.
-The planned rerun must extend this report with the full factorial results and
-state its decision against that pre-run specification.
+The full factorial results and decision below are evaluated against that
+pre-run specification.
 
 This report covers the corrected implementation after the checkpoint-metric,
-probe-standardization, and exposure-budget fixes. The interrupted earlier run
-under `runs/developmental_l5_screen/` is not used here. The results below are
-from `runs/developmental_l5_screen_corrected/` and the two clean replication
-runs under `runs/developmental_l5_replication/`. The resolved configurations
-stored beside the runs define the protocol used for each result.
+probe-standardization, and exposure-budget fixes. The summary below retains the
+scientific conclusions from the completed screen and partial replication. Their
+large raw run directories were intentionally removed during cleanup; the next
+rerun is defined by the commands in the stage README and writes to the new
+stage-specific `runs/01_ntp_development/` paths.
 
 ## Protocol
 
@@ -125,11 +125,9 @@ The screen shows a useful ordered pattern in the largest-data regime:
 This is evidence for an H1-to-H2-to-H3 developmental ordering, not evidence
 that the model has learned a complete four-level abstract hierarchy.
 
-Plots for all three screen runs are stored beside their trajectory JSON:
-
-- `runs/developmental_l5_screen_corrected/grammar_0/model_0/P_16384/trajectory/trajectory.png`
-- `runs/developmental_l5_screen_corrected/grammar_0/model_0/P_32768/trajectory/trajectory.png`
-- `runs/developmental_l5_screen_corrected/grammar_0/model_0/P_65536/trajectory/trajectory.png`
+The previous raw trajectory plots were exploratory artifacts and were removed
+with the old run directories. Fresh plots from the full rerun are stored with
+each trajectory under `runs/01_ntp_development/rerun/`.
 
 ## Pre-specified acquisition rule
 
@@ -142,25 +140,27 @@ consecutive checkpoints:
    it must also exceed the untrained-backbone control by at least 0.10 when
    that control is below 0.5;
 2. `C >= 0.10` and is at least 0.05 above the step-zero value; and
-3. `S >= 1.005`, ruling out a conclusion based on representation collapse.
+3. For the historical screen, `S >= 1.005` was also recorded as a continuity
+   check. The confirmation rerun treats this as secondary and reports the raw
+   same-layer `d_syn`, `d_variable`, `d_non`, and `Q` contrast instead.
 
 H1 is exempt from the untrained-accuracy comparison because its untrained
-control is already perfect from token exposure. H1 must instead satisfy the
-clustering and sensitivity conditions and show a clear improvement in the
-trained-versus-untrained intervention profile.
+control is already perfect from token exposure. H1 is supporting context, not
+the central developmental gate; the primary clock is the replicated H2-to-H3
+same-layer A+C ordering.
 
 These thresholds are operational screening criteria, not statistical
 significance claims. A confirmatory study should add bootstrap confidence
 intervals and retain the full layer-by-level curves rather than selecting only
 the maximum layer.
 
-## Criterion status
+## Criterion status before the full rerun
 
 The screen was promising enough to justify the minimal replication. The
 replication was evaluated under the rule above, with the layerwise distinction
 made explicit below. Its outcome is not a full go for the auxiliary objective.
 
-## Replication
+## Earlier two-run replication
 
 The earlier two-run replication at `P=65,536` closely matches the screen. The
 planned rerun configuration now expands this to the full 2 × 2 grammar/model
@@ -201,20 +201,20 @@ than the first robust H2 `A/C` stream, and it arrives later in training. It is
 a replicated onset pattern, not merely a difference between the independently
 selected maximum layers.
 
-The sensitivity check qualifies that conclusion. At step 3,000, H2 passes the
-`S >= 1.005` threshold at some deeper layers in both runs, but H3 does not pass
-it at the first `A/C` layer (`j=3`) in either run. The grammar-0/model-1 run
-passes the full same-layer rule only at a late `j=8` window around steps
-4,500--5,000; the grammar-1/model-0 run has no H3 layer satisfying all three
-thresholds. Since `S` is close to one and can vary across layers, it should be
-reported as a collapse/sensitivity check rather than silently substituted by
-the maximum `S` from another layer.
+The legacy sensitivity check qualified that conclusion. At step 3,000, H2
+passed the `S >= 1.005` threshold at some deeper layers in both runs, but H3
+did not pass it at the first `A/C` layer (`j=3`) in either run. The
+grammar-0/model-1 run passed the old full same-layer rule only at a late `j=8`
+window around steps 4,500--5,000; the grammar-1/model-0 run had no H3 layer
+satisfying all three thresholds. The confirmation rerun should retain `S` for
+continuity but report the raw same-layer distances and `Q` rather than letting
+the legacy ratio act as an independent acquisition hurdle.
 
 The H1-to-H2-to-H3 order therefore survives both a model-seed change and a
 grammar change. The H3 transition occurs while validation NTP is still
 improving, leaving a useful window for a future intervention.
 
-## Decision
+## Decision before the full rerun
 
 The current evidence supports a **rerun baseline** decision, not a go for the
 auxiliary objective. The narrow positive result is that vanilla causal NTP
@@ -224,15 +224,136 @@ claim is not yet established because the same-layer sensitivity criterion for
 H3 does not replicate across the two confirmation runs. H4 is also not
 acquired.
 
-The rerun should retain the current fixed `P=65,536` regime and exact
-checkpoint trajectory, but make the layerwise report primary. For every
-checkpoint and level, retain the complete vectors for `A`, `C`, and `S`, then
-report separately:
+The rerun should retain the fixed `P=65,536` regime and exact checkpoint
+trajectory, but make the layerwise report primary across all four runs. For
+every checkpoint and level, retain the complete vectors for `A`, `C`, `S`, and
+the raw intervention distances, then report separately:
 
 - the first layer and step for probe-only accessibility;
 - the first layer and step for `A+C` evidence; and
-- the first layer and step satisfying the full `A+C+S` rule.
+- the same-layer `d_variable-d_syn` contrast and normalized `Q`, with the
+  legacy `S` threshold shown for continuity.
 
 Do not implement the auxiliary loss until the rerun either satisfies the
 pre-specified gate or the gate is deliberately revised before looking at the
-new results. The auxiliary objective has not been implemented in this change.
+new results. The auxiliary objective had not been implemented at that point.
+
+## Full 2 × 2 confirmation rerun
+
+The required confirmation rerun was executed from
+[`configs/replication.json`](configs/replication.json) with ordinary causal
+NTP only. It used `P=65,536`, four grammar/model seed combinations, 5,000
+updates, batch size 256, evaluation every 250 updates, and exact checkpoints
+at steps `0, 500, ..., 5,000`. Training ran on MPS with deterministic mode
+enabled but non-strict backend behavior. No latent auxiliary loss was used.
+
+Offline diagnostics then evaluated all 11 checkpoints for all four runs on the
+validation split, using 1,024 sequences, 300 probe steps, all nine residual
+streams (`j=0` embedding and `j=1,...,8` post-block), and both requested probe
+controls. The raw artifacts and four five-panel trajectory plots are under
+`runs/01_ntp_development/rerun/`.
+
+### NTP results
+
+| grammar seed | model seed | best validation CE | best step | final validation CE | test CE |
+|---:|---:|---:|---:|---:|---:|
+| 0 | 0 | 1.4709 | 4,250 | 1.4785 | 1.4715 |
+| 0 | 1 | 1.4684 | 4,250 | 1.4768 | 1.4686 |
+| 1 | 0 | 1.4683 | 4,000 | 1.4843 | 1.4676 |
+| 1 | 1 | 1.4689 | 4,250 | 1.4838 | 1.4693 |
+
+All four runs improved substantially from the step-zero validation CE of
+approximately `2.86--2.89` and continued improving through the H3 transition
+window. The best checkpoints were later than the transition windows, leaving
+NTP headroom for a future intervention.
+
+### Where H2 and H3 become decodable
+
+The table below gives the first step of a two-checkpoint consecutive window
+for which the pre-specified probe criteria are met at each layer. A dash means
+that the criterion was not met twice by step 5,000. The layer order in each
+vector is `j=0,1,...,8`.
+
+| run | H2 probe-only onset by layer | H3 probe-only onset by layer |
+|---|---|---|
+| grammar 0 / model 0 | `--, 2000, 1000, 1000, 1000, 1000, 1000, 1000, 1000` | `--, --, 2000, 2000, 2000, 2000, 2000, 2000, 2000` |
+| grammar 0 / model 1 | `--, 3000, 1000, 1000, 1000, 1000, 1000, 1000, 1000` | `--, --, 3000, 2500, 2000, 2000, 2000, 2000, 2000` |
+| grammar 1 / model 0 | `--, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000` | `--, --, 3000, 2000, 1500, 1500, 1500, 1500, 1500` |
+| grammar 1 / model 1 | `--, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000` | `--, --, --, 2000, 2000, 2000, 2000, 1500, 1500` |
+
+Probe-only accessibility spreads through deeper layers after it first appears,
+so it should not be interpreted as a one-block computation claim. The stable
+cross-run result is that H2 is first accessible around `j=2`, while H3 is
+first accessible around `j=3` or deeper.
+
+### Same-layer A+C acquisition
+
+The primary acquisition test combines balanced probe accuracy and synonym
+invariance at the same layer. The table gives the first two-checkpoint window
+and the layers that satisfy the criteria throughout that window.
+
+| run | H2 A+C window | H2 layers | H3 A+C window | H3 layers |
+|---|---|---|---|---|
+| grammar 0 / model 0 | 1,500--2,000 | `j=2--8` | 3,000--3,500 | `j=3--8` |
+| grammar 0 / model 1 | 1,500--2,000 | `j=2--8` | 3,000--3,500 | `j=3--8` |
+| grammar 1 / model 0 | 1,000--1,500 | `j=2--8` | 2,500--3,000 | `j=3--8` |
+| grammar 1 / model 1 | 1,000--1,500 | `j=2--8` | 2,500--3,000 | `j=3--8` |
+
+This is the central result of the rerun. The H2-to-H3 ordering and the
+one-block-deeper onset pattern replicate across both grammar realizations and
+both model seeds. H3 acquisition occurs later while validation NTP is still
+falling: the H3 windows begin at validation CE `1.510--1.526` and the best
+validation CE is approximately `1.468--1.471`.
+
+### Raw same-layer intervention checks
+
+The following values are at the first robust layer (`j=2` for H2 and `j=3`
+for H3), at the second checkpoint of each A+C window. `d_syn` is the
+synonymous surface-change distance, `d_variable` is the latent-replacement
+distance, and `d_non` is the unrelated-reference distance. `Q` is the
+pre-specified normalized contrast `(d_variable - d_syn) / d_non`.
+
+| run | level/layer | A | C | `d_syn` | `d_variable` | `d_non` | `S` | `Q` |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| grammar 0 / model 0 | H2 / `j=2` | .989 | .620 | .799 | 2.116 | 2.105 | 1.0049 | +.625 |
+| grammar 0 / model 0 | H3 / `j=3` | .725 | .242 | 1.550 | 2.021 | 2.045 | .9885 | +.230 |
+| grammar 0 / model 1 | H2 / `j=2` | .978 | .554 | .942 | 2.072 | 2.113 | .9807 | +.535 |
+| grammar 0 / model 1 | H3 / `j=3` | .684 | .293 | 1.446 | 2.011 | 2.044 | .9839 | +.276 |
+| grammar 1 / model 0 | H2 / `j=2` | .917 | .571 | .915 | 2.105 | 2.132 | .9870 | +.558 |
+| grammar 1 / model 0 | H3 / `j=3` | .868 | .391 | 1.241 | 2.060 | 2.037 | 1.0112 | +.402 |
+| grammar 1 / model 1 | H2 / `j=2` | .781 | .156 | 1.767 | 2.023 | 2.094 | .9661 | +.122 |
+| grammar 1 / model 1 | H3 / `j=3` | .799 | .268 | 1.488 | 2.024 | 2.031 | .9964 | +.264 |
+
+`Q` is positive at the first robust H2 and H3 layer in every run, and the
+latent-replacement distance exceeds the synonymous distance in every one of
+these eight comparisons. This provides no evidence of persistent
+representation collapse at the claimed transitions. The legacy `S >= 1.005`
+continuity check is mixed, especially for H2 and H3 at their first robust
+layers; under the pre-run specification it is reported as a secondary ratio,
+not used as a second acquisition hurdle. No new hard Q threshold was chosen
+after inspecting the results.
+
+H4 does not satisfy the same-layer A+C rule in any run by step 5,000. Some
+late H4 probe accessibility is visible, but its synonym score remains near
+baseline, so the rerun does not support an H4 abstraction claim.
+
+### Confirmation decision
+
+The full rerun meets the embedded expectation and therefore receives a
+**go** decision for the next implementation stage:
+
+- held-out NTP improves strongly and retains headroom after H1, H2, and H3
+  transitions;
+- H2 is acquired before H3 in all four runs;
+- the same-layer onset is consistently `j=2` for H2 and `j=3` for H3;
+- the H2-to-H3 timing order replicates across grammar and model seeds;
+- the raw same-layer intervention contrast is positive at every claimed H2
+  and H3 onset; and
+- H4 remains correctly marked as unacquired rather than being inferred from
+  probe-only accessibility.
+
+The go authorizes a separate fixed-target auxiliary-loss comparison. It does
+not claim that vanilla NTP acquires H4, that the hierarchy is encoded in one
+block per level, or that the legacy sensitivity ratio is a calibrated
+statistical test. The next experiment should preserve this baseline and
+compare fixed target layers before attempting adaptive target switching.
