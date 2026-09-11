@@ -125,6 +125,33 @@ def test_end_to_end_training_smoke(tmp_path: Path):
     assert (tmp_path / "metrics.json").exists()
 
 
+def test_training_without_output_dir_returns_metrics():
+    cfg = _tiny_cfg()
+    cfg.train.max_updates = 1
+    bundle = build_rhm_bundle(
+        v=cfg.rhm.v,
+        n=cfg.rhm.n,
+        m=cfg.rhm.m,
+        s=cfg.rhm.s,
+        L=cfg.rhm.L,
+        rule_seed=cfg.rhm.rule_seed,
+        train_seed=cfg.rhm.train_seed,
+        val_seed=cfg.rhm.val_seed,
+        test_seed=cfg.rhm.test_seed,
+        train_size=cfg.data.train_size,
+        val_size=cfg.data.val_size,
+        test_size=cfg.data.test_size,
+    )
+    metrics = train_model(
+        cfg,
+        LeafSequenceDataset(bundle.train.leaves),
+        LeafSequenceDataset(bundle.val.leaves),
+        LeafSequenceDataset(bundle.test.leaves),
+        verbose=False,
+    )
+    assert metrics["global_step"] == 1
+
+
 def test_training_metrics_report_last_position_and_exposure_baselines(tmp_path: Path):
     cfg = _tiny_cfg()
     cfg.train.max_updates = 2

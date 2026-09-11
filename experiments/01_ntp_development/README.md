@@ -153,14 +153,14 @@ auxiliary comparison as separate from-scratch runs:
 
 \[
 \mathcal L=\mathcal L_{\mathrm{NTP}}+
-\lambda\mathcal L_{\mathrm{next\ latent}}^{(j)},
-\qquad
-j\in\{\text{embedding},1,2,4,6,8\}.
+\lambda\mathcal L_{\mathrm{next\ latent}}^{(j)}.
 \]
 
 The first question is which fixed target minimizes time to acquire `H1`, `H2`,
-and `H3`. Adaptive target switching comes only after that fixed-target
-comparison produces a meaningful developmental clock.
+and `H3`; the complete target-depth grid is defined in
+[Stage 02](../02_fixed_latent_targets/README.md). Adaptive target switching
+comes only after that fixed-target comparison produces a meaningful
+developmental clock.
 
 ### Rerun the baseline instead if
 
@@ -259,3 +259,9 @@ Do not implement the latent auxiliary loss after a promising screen alone.
 First compare the full rerun with the expectation in this README and record
 `go`, `no-go`, or `rerun baseline` in [RESULTS.md](RESULTS.md). Only an explicit
 `go` authorizes the next implementation stage.
+
+The completed confirmation rerun is recorded in [RESULTS.md](RESULTS.md) with
+a **go** decision. The authorized next stage is the fixed auxiliary target-depth
+screen in [Stage 02](../02_fixed_latent_targets/README.md); that stage must be
+read together with its results template before any broader auxiliary-loss or
+adaptive-target work proceeds.

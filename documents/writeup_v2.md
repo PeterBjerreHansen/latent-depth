@@ -312,12 +312,13 @@ Build a raw-leaf RHM generator, exact small-grammar inference, and a standard de
 Run NTP, a fixed shallow target, a fixed deeper target, and a predetermined shallow-to-deep schedule early in the project. Keep NTP active in all latent runs. Add a matched progressive-freezing arm on a subset to connect directly to the vision precedent. These runs test whether the setting contains a promising developmental phenomenon; theory diagnostics should support this comparison rather than delay it.
 
 For the current implementation round, the ordinary NTP developmental screen
-comes first. Compare its held-out NLL, layer-by-level probes, synonym
-invariance, latent-replacement sensitivity, and transition ordering with the
-Stage 01 [NTP L5 baseline expectation](../experiments/01_ntp_development/README.md). Do not implement
-the latent auxiliary objective or begin the fixed-target comparison until that
-gate has an explicit **go** decision; a **no-go** or **rerun baseline** result
-means adjusting the baseline regime first.
+was compared with the Stage 01
+[NTP L5 baseline expectation](../experiments/01_ntp_development/README.md) and
+received an explicit **go** decision. The next experiment is the fixed-target
+auxiliary comparison defined in
+[Stage 02](../experiments/02_fixed_latent_targets/README.md). It must establish
+whether a fixed residual-stream target changes H2/H3 acquisition before any
+adaptive target policy is implemented.
 
 Validate causal indexing, stop-gradient behavior, and grammar conditionals. Keep optimization time separate from unique-sample exposure by studying a fixed dataset first, then varying dataset size. Record ordinary-layer probes and target stability throughout training.
 

@@ -122,11 +122,37 @@ for the small rerunnable experiments. Update-based checkpoint metadata always
 describes the checkpoint's own optimizer step; when no evaluation occurs at that
 step, it contains only the step and exposure counters.
 
-The next experimental round is still a baseline decision gate. Before adding
-any latent auxiliary objective or changing the training target, compare the
-training-age trajectory and diagnostics with the repository-level
-[Stage 01 protocol and expectation](../experiments/01_ntp_development/README.md)
-and record an explicit go/no-go decision in its results report.
+## Stage 02 fixed auxiliary targets
+
+The Stage-01 confirmation rerun met its expectation and authorized the first
+auxiliary-loss comparison. The runnable protocol, screen configuration, and
+eventual report live together under
+[`experiments/02_fixed_latent_targets/`](../experiments/02_fixed_latent_targets/).
+
+`auxiliary.py` implements a small predictor from the final residual stream at
+position `t` to a detached future residual stream at position `t+1`. The target
+depth is fixed per arm: `j=0` is the token-plus-position embedding stream and
+`j=1,...,D` are post-block streams. This is model-residual self-supervision,
+not direct RHM latent supervision; H1--H4 remain diagnostic targets only.
+
+`training.py` keeps NTP active and uses NTP validation cross-entropy for model
+selection. Auxiliary and total losses are recorded as training observables.
+The predictor is included in optimization, gradient clipping, checkpoints, and
+exact resume state, while the backbone-only checkpoint loader remains suitable
+for the existing offline diagnostics.
+
+`sweep_target_depth.py` runs the NTP null arm and fixed target depths with the
+same grammar/model seeds and data ordering. The Stage-02 report must compare
+H2/H3 same-layer acquisition times, layerwise probe decodability, surface-token
+and position controls, NTP validation cost, and auxiliary/total loss curves.
+Do not add adaptive switching or target mixtures until a fixed-target result is
+replicated.
+
+The Stage-01 baseline gate is complete. Before adding adaptive target policies
+or changing the auxiliary objective, compare the fixed-target training-age
+trajectories and diagnostics with the repository-level
+[Stage 02 protocol and report](../experiments/02_fixed_latent_targets/README.md)
+and record the resulting decision in its results report.
 
 ## Scope
 

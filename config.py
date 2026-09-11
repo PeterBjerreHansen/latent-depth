@@ -68,6 +68,45 @@ class ObjectiveConfig:
 
 
 @dataclass
+class AuxiliaryConfig:
+    """Optional fixed-depth next-latent auxiliary objective.
+
+    ``target_layer`` follows the residual-stream convention used by the
+    diagnostics: layer 0 is the token+position embedding stream and layer j>0
+    is the post-block-j residual stream.  The source is always the final
+    post-block residual stream at the preceding token position.
+    """
+
+    mode: str = "none"
+    target_layer: Optional[int] = None
+    weight: float = 0.1
+    predictor_hidden_mult: int = 2
+    seed: int = 54321
+
+    def validate(self, *, n_layer: int) -> None:
+        if self.mode not in {"none", "next_latent"}:
+            raise ValueError("auxiliary.mode must be 'none' or 'next_latent'")
+        if self.predictor_hidden_mult <= 0:
+            raise ValueError("auxiliary.predictor_hidden_mult must be positive")
+        if self.weight < 0:
+            raise ValueError("auxiliary.weight must be nonnegative")
+        if self.mode == "none":
+            if self.target_layer is not None:
+                raise ValueError("auxiliary.target_layer must be null when auxiliary.mode='none'")
+            return
+        if self.target_layer is None:
+            raise ValueError("auxiliary.target_layer is required for next_latent mode")
+        if not isinstance(self.target_layer, int) or isinstance(self.target_layer, bool):
+            raise ValueError("auxiliary.target_layer must be an integer or null")
+        if self.weight <= 0:
+            raise ValueError("auxiliary.weight must be positive in next_latent mode")
+        if not 0 <= self.target_layer <= int(n_layer):
+            raise ValueError(
+                f"auxiliary.target_layer must lie in [0,{n_layer}] for this model"
+            )
+
+
+@dataclass
 class OptimConfig:
     name: str = "adamw"
     learning_rate: float = 3e-4
@@ -88,7 +127,7 @@ class OptimConfig:
 
 @dataclass
 class DiagnosticsConfig:
-    """Optional observers for the frozen causal NTP representation."""
+    """Optional observers for the frozen causal representation."""
 
     enabled: bool = False
     linear_probe: bool = True
@@ -155,6 +194,7 @@ class ExperimentConfig:
     data: DataConfig = field(default_factory=DataConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     objective: ObjectiveConfig = field(default_factory=ObjectiveConfig)
+    auxiliary: AuxiliaryConfig = field(default_factory=AuxiliaryConfig)
     optim: OptimConfig = field(default_factory=OptimConfig)
     diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
@@ -168,6 +208,7 @@ class ExperimentConfig:
         self.diagnostics.validate()
         self.train.validate()
         self.objective.validate()
+        self.auxiliary.validate(n_layer=self.model.n_layer)
         if self.diagnostics.enabled and self.diagnostics.synonym_clustering and self.rhm.m < 2:
             raise ValueError("synonym-clustering diagnostics require RHM m >= 2")
         if self.diagnostics.enabled and self.rhm.L < 2:
@@ -180,7 +221,13 @@ class ExperimentConfig:
             data=DataConfig(**d.get("data", {})),
             model=ModelConfig(**d.get("model", {})),
             objective=ObjectiveConfig(**d.get("objective", {})),
-            optim=OptimConfig(**{**d.get("optim", {}), "betas": tuple(d.get("optim", {}).get("betas", (0.9, 0.95)))}),
+            auxiliary=AuxiliaryConfig(**d.get("auxiliary", {})),
+            optim=OptimConfig(
+                **{
+                    **d.get("optim", {}),
+                    "betas": tuple(d.get("optim", {}).get("betas", (0.9, 0.95))),
+                }
+            ),
             diagnostics=DiagnosticsConfig(**d.get("diagnostics", {})),
             train=TrainConfig(**d.get("train", {})),
             model_seed=d.get("model_seed", 0),
@@ -214,14 +261,7 @@ class SweepConfig:
         train_sizes = [int(x) for x in d["train_sizes"]]
         grammar_seeds = [int(x) for x in d.get("grammar_seeds", [exp.rhm.rule_seed])]
         model_seeds = [int(x) for x in d.get("model_seeds", [exp.model_seed])]
-        replicates = None
-        if "replicates" in d:
-            replicates = [
-                (int(r["grammar_seed"]), int(r["model_seed"]))
-                for r in d["replicates"]
-            ]
-            if not replicates or len(set(replicates)) != len(replicates):
-                raise ValueError("replicates must be nonempty unique (grammar_seed, model_seed) pairs")
+        replicates = _parse_replicates(d)
         if not train_sizes or min(train_sizes) <= 0:
             raise ValueError("train_sizes must be nonempty and positive")
         if len(set(train_sizes)) != len(train_sizes):
@@ -248,6 +288,69 @@ class SweepConfig:
         )
 
     def replicate_pairs(self) -> list[tuple[int, int]]:
-        if self.replicates is not None:
-            return list(self.replicates)
-        return [(g, m) for g in self.grammar_seeds for m in self.model_seeds]
+        return _replicate_pairs(self.grammar_seeds, self.model_seeds, self.replicates)
+
+
+@dataclass
+class TargetDepthSweepConfig:
+    """Stage-02 sweep over fixed Transformer target depth."""
+
+    experiment: ExperimentConfig
+    target_layers: list[Optional[int]]
+    grammar_seeds: list[int]
+    model_seeds: list[int]
+    replicates: Optional[list[tuple[int, int]]] = None
+
+    @classmethod
+    def from_json(cls, path: str | Path) -> "TargetDepthSweepConfig":
+        with open(path, "r", encoding="utf-8") as f:
+            d = json.load(f)
+        exp = ExperimentConfig.from_dict(d["experiment"])
+        raw_layers = d.get("target_layers")
+        if not isinstance(raw_layers, list) or not raw_layers:
+            raise ValueError("target_layers must be a nonempty list")
+        target_layers: list[Optional[int]] = []
+        for value in raw_layers:
+            if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
+                raise ValueError("target_layers must contain only integers or null")
+            layer = value
+            if layer is not None and not 0 <= layer <= exp.model.n_layer:
+                raise ValueError(
+                    f"target layer {layer} lies outside [0,{exp.model.n_layer}]"
+                )
+            target_layers.append(layer)
+        if len(set(target_layers)) != len(target_layers):
+            raise ValueError("target_layers must be unique")
+        grammar_seeds = [int(x) for x in d.get("grammar_seeds", [exp.rhm.rule_seed])]
+        model_seeds = [int(x) for x in d.get("model_seeds", [exp.model_seed])]
+        if not grammar_seeds or len(set(grammar_seeds)) != len(grammar_seeds):
+            raise ValueError("grammar_seeds must be nonempty and unique")
+        if not model_seeds or len(set(model_seeds)) != len(model_seeds):
+            raise ValueError("model_seeds must be nonempty and unique")
+        replicates = _parse_replicates(d)
+        return cls(exp, target_layers, grammar_seeds, model_seeds, replicates)
+
+    def replicate_pairs(self) -> list[tuple[int, int]]:
+        return _replicate_pairs(self.grammar_seeds, self.model_seeds, self.replicates)
+
+
+def _parse_replicates(d: dict[str, Any]) -> Optional[list[tuple[int, int]]]:
+    if "replicates" not in d:
+        return None
+    replicates = [
+        (int(r["grammar_seed"]), int(r["model_seed"]))
+        for r in d["replicates"]
+    ]
+    if not replicates or len(set(replicates)) != len(replicates):
+        raise ValueError("replicates must be nonempty unique (grammar_seed, model_seed) pairs")
+    return replicates
+
+
+def _replicate_pairs(
+    grammar_seeds: list[int],
+    model_seeds: list[int],
+    replicates: Optional[list[tuple[int, int]]],
+) -> list[tuple[int, int]]:
+    if replicates is not None:
+        return list(replicates)
+    return [(g, m) for g in grammar_seeds for m in model_seeds]

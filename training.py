@@ -6,13 +6,14 @@ import copy
 import math
 import random
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Iterable, Optional
 
 import numpy as np
 import torch
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset, Sampler
 
+from auxiliary import NextLatentPredictor, build_auxiliary_predictor, next_latent_loss
 from config import ExperimentConfig
 from diagnostics import run_latent_diagnostics
 from nanogpt import GPT, GPTConfig
@@ -83,11 +84,44 @@ def objective_inputs(tokens: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
 
 
 def loss_from_tokens(model: GPT, tokens: torch.Tensor) -> torch.Tensor:
+    """Ordinary next-token loss; intentionally independent of auxiliary mode."""
     x, y = objective_inputs(tokens)
     _, loss = model(x, targets=y)
     if loss is None:
         raise RuntimeError("model did not return a loss for next-token training")
     return loss
+
+
+def training_losses(
+    model: GPT,
+    predictor: NextLatentPredictor | None,
+    tokens: torch.Tensor,
+    cfg: ExperimentConfig,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor]:
+    """Return NTP, optional next-latent, and combined training losses."""
+    x, y = objective_inputs(tokens)
+    if cfg.auxiliary.mode == "none":
+        if predictor is not None:
+            raise ValueError("predictor must be None when auxiliary mode is disabled")
+        _, ntp_loss = model(x, targets=y)
+        if ntp_loss is None:
+            raise RuntimeError("model did not return a next-token loss")
+        return ntp_loss, None, ntp_loss
+
+    if cfg.auxiliary.mode != "next_latent":
+        raise ValueError(f"unsupported auxiliary mode: {cfg.auxiliary.mode}")
+    if predictor is None or cfg.auxiliary.target_layer is None:
+        raise ValueError("next_latent mode requires predictor and target_layer")
+    _, ntp_loss, hidden_states, _ = model(x, targets=y, return_hidden=True)
+    if ntp_loss is None:
+        raise RuntimeError("model did not return a next-token loss")
+    aux_loss = next_latent_loss(
+        hidden_states,
+        predictor,
+        target_layer=int(cfg.auxiliary.target_layer),
+    )
+    total_loss = ntp_loss + float(cfg.auxiliary.weight) * aux_loss
+    return ntp_loss, aux_loss, total_loss
 
 
 def _per_position_nll(model: GPT, tokens: torch.Tensor) -> torch.Tensor:
@@ -196,8 +230,8 @@ def evaluate_with_positions(
         model.train(was_training)
 
 
-def _cpu_state_dict(model: GPT) -> dict[str, torch.Tensor]:
-    return {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+def _cpu_state_dict(module: torch.nn.Module) -> dict[str, torch.Tensor]:
+    return {k: v.detach().cpu().clone() for k, v in module.state_dict().items()}
 
 
 def _cpu_tensor_dict(values: Optional[TensorDict]) -> Optional[TensorDict]:
@@ -213,19 +247,57 @@ def _rules_equal(left: TensorDict, right: TensorDict) -> bool:
     )
 
 
-def _make_optimizer(model: GPT, cfg: ExperimentConfig) -> torch.optim.Optimizer:
+def _optimizer_parameters(
+    model: GPT,
+    predictor: NextLatentPredictor | None,
+) -> list[torch.nn.Parameter]:
+    params = list(model.parameters())
+    if predictor is not None:
+        params.extend(predictor.parameters())
+    return params
+
+
+def _make_optimizer(
+    model: GPT,
+    cfg: ExperimentConfig,
+    predictor: NextLatentPredictor | None = None,
+) -> torch.optim.Optimizer:
+    # Preserve the original NTP optimizer construction exactly when no
+    # auxiliary predictor exists.
+    if predictor is None:
+        if cfg.optim.name == "adam":
+            return torch.optim.Adam(
+                model.parameters(),
+                lr=cfg.optim.learning_rate,
+                betas=tuple(cfg.optim.betas),
+                weight_decay=cfg.optim.weight_decay,
+            )
+        return model.configure_optimizers(
+            weight_decay=cfg.optim.weight_decay,
+            learning_rate=cfg.optim.learning_rate,
+            betas=tuple(cfg.optim.betas),
+            device_type=next(model.parameters()).device.type,
+        )
+
+    parameters = _optimizer_parameters(model, predictor)
     if cfg.optim.name == "adam":
         return torch.optim.Adam(
-            model.parameters(),
+            parameters,
             lr=cfg.optim.learning_rate,
             betas=tuple(cfg.optim.betas),
             weight_decay=cfg.optim.weight_decay,
         )
-    return model.configure_optimizers(
-        weight_decay=cfg.optim.weight_decay,
-        learning_rate=cfg.optim.learning_rate,
+
+    decay = [parameter for parameter in parameters if parameter.dim() >= 2]
+    no_decay = [parameter for parameter in parameters if parameter.dim() < 2]
+    groups = [
+        {"params": decay, "weight_decay": cfg.optim.weight_decay},
+        {"params": no_decay, "weight_decay": 0.0},
+    ]
+    return torch.optim.AdamW(
+        groups,
+        lr=cfg.optim.learning_rate,
         betas=tuple(cfg.optim.betas),
-        device_type=next(model.parameters()).device.type,
     )
 
 
@@ -254,18 +326,20 @@ def save_checkpoint(
     epoch: int,
     global_step: int,
     metrics: dict[str, Any],
+    predictor: NextLatentPredictor | None = None,
     loader_states: Optional[dict[str, Any]] = None,
     trainer_state: Optional[dict[str, Any]] = None,
     best_state: Optional[dict[str, torch.Tensor]] = None,
     rules: Optional[TensorDict] = None,
 ) -> None:
-    """Save a self-contained training checkpoint, including the RHM grammar."""
+    """Save a self-contained training checkpoint, including auxiliary state."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     mps_rng = _mps_rng_state()
     torch.save(
         {
             "model": _cpu_state_dict(model),
+            "predictor": None if predictor is None else _cpu_state_dict(predictor),
             "optimizer": copy.deepcopy(optimizer.state_dict()),
             "config": cfg.to_dict(),
             "rules": _cpu_tensor_dict(rules),
@@ -304,7 +378,11 @@ def restore_rng_state(rng: dict[str, Any]) -> None:
         mps.set_rng_state(rng["mps"])
 
 
-def load_model_from_checkpoint(path: str | Path, device: str = "cpu") -> tuple[GPT, ExperimentConfig, dict[str, Any]]:
+def load_model_from_checkpoint(
+    path: str | Path,
+    device: str = "cpu",
+) -> tuple[GPT, ExperimentConfig, dict[str, Any]]:
+    """Load the GPT backbone only; auxiliary state is intentionally ignored."""
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
     cfg = ExperimentConfig.from_dict(ckpt["config"])
     model = build_model(cfg)
@@ -317,15 +395,36 @@ def load_training_state(
     path: str | Path,
     device: str = "cpu",
 ) -> tuple[GPT, ExperimentConfig, torch.optim.Optimizer, dict[str, Any]]:
-    """Load model, optimizer, and RNG state for exact continuation."""
+    """Load NTP model, optimizer, and RNG state for compatibility tests.
+
+    Auxiliary runs should be resumed through :func:`train_model`, which also
+    restores the predictor module.  This helper deliberately retains its
+    historical four-value interface.
+    """
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
     cfg = ExperimentConfig.from_dict(ckpt["config"])
-    model = build_model(cfg).to(torch.device(device))
+    resolved_device = torch.device(device)
+    model = build_model(cfg).to(resolved_device)
     model.load_state_dict(ckpt["model"], strict=True)
-    optimizer = _make_optimizer(model, cfg)
+    predictor = build_auxiliary_predictor(cfg, resolved_device)
+    if predictor is not None:
+        predictor_state = ckpt.get("predictor")
+        if predictor_state is None:
+            raise ValueError("auxiliary checkpoint is missing predictor state")
+        predictor.load_state_dict(predictor_state, strict=True)
+    optimizer = _make_optimizer(model, cfg, predictor)
     optimizer.load_state_dict(ckpt["optimizer"])
     restore_rng_state(ckpt["rng"])
     return model, cfg, optimizer, ckpt
+
+
+def _clip_parameters(
+    model: GPT,
+    predictor: NextLatentPredictor | None,
+) -> Iterable[torch.nn.Parameter]:
+    if predictor is None:
+        return model.parameters()
+    return list(model.parameters()) + list(predictor.parameters())
 
 
 def train_model(
@@ -340,11 +439,11 @@ def train_model(
     rules: Optional[TensorDict] = None,
     verbose: bool = True,
 ) -> dict[str, Any]:
-    """Train one model and select the checkpoint with the best validation NLL.
+    """Train one model and select the checkpoint with the best NTP validation NLL.
 
-    Optional diagnostics observe a frozen validation representation and are
-    recorded in history, but never affect the loss, optimization, or model
-    selection.
+    The optional Stage-02 auxiliary objective affects training only.  Model
+    selection, validation metrics, test metrics, and representation diagnostics
+    remain defined by the causal NTP backbone exactly as in Stage 01.
     """
     cfg.validate()
     if len(train_dataset) != cfg.data.train_size:
@@ -366,8 +465,12 @@ def train_model(
             cfg.train.deterministic,
             cfg.train.deterministic_strict,
         )
+        # Build GPT first.  Auxiliary predictor construction forks CPU RNG so
+        # adding an auxiliary head cannot alter the backbone initialization or
+        # subsequent training RNG stream.
         model = build_model(cfg).to(device)
-        optimizer = _make_optimizer(model, cfg)
+        predictor = build_auxiliary_predictor(cfg, device)
+        optimizer = _make_optimizer(model, cfg, predictor)
         train_sampler_generator = torch.Generator(device="cpu").manual_seed(cfg.model_seed + 17)
         train_loader_generator = torch.Generator(device="cpu").manual_seed(cfg.model_seed + 19)
         train_sampler = StatefulRandomSampler(len(train_dataset), train_sampler_generator)
@@ -397,7 +500,16 @@ def train_model(
             raise ValueError("resume checkpoint configuration does not match requested configuration")
         model = build_model(cfg).to(device)
         model.load_state_dict(checkpoint["model"], strict=True)
-        optimizer = _make_optimizer(model, cfg)
+        predictor = build_auxiliary_predictor(cfg, device)
+        predictor_state = checkpoint.get("predictor")
+        if predictor is None:
+            if predictor_state is not None:
+                raise ValueError("NTP checkpoint unexpectedly contains auxiliary predictor state")
+        else:
+            if predictor_state is None:
+                raise ValueError("auxiliary checkpoint is missing predictor state")
+            predictor.load_state_dict(predictor_state, strict=True)
+        optimizer = _make_optimizer(model, cfg, predictor)
         optimizer.load_state_dict(checkpoint["optimizer"])
         train_sampler_generator = torch.Generator(device="cpu")
         train_loader_generator = torch.Generator(device="cpu")
@@ -514,6 +626,7 @@ def train_model(
         save_checkpoint(
             out / "checkpoints" / f"step_{global_step:08d}.pt",
             model=model,
+            predictor=predictor,
             optimizer=optimizer,
             cfg=cfg,
             epoch=epoch,
@@ -527,19 +640,19 @@ def train_model(
 
     last_evaluated_step: Optional[int] = None
 
-    def record_evaluation(*, epoch: int, running_train_ce: Optional[float]) -> None:
-        """Evaluate, optionally diagnose, select, and checkpoint one state."""
-        nonlocal best_epoch
-        nonlocal best_state
-        nonlocal best_step
-        nonlocal best_val
-        nonlocal eval_count
-        nonlocal last_evaluated_step
-        nonlocal last_train_ce
-        nonlocal last_val_ce
-        nonlocal last_val_nll_by_position
+    def record_evaluation(
+        *,
+        epoch: int,
+        running_train_ce: Optional[float],
+        running_aux_loss: Optional[float],
+        running_total_loss: Optional[float],
+    ) -> None:
+        """Evaluate NTP, optionally diagnose, select, and checkpoint one state."""
+        nonlocal best_epoch, best_state, best_step, best_val, eval_count
+        nonlocal last_evaluated_step, last_train_ce, last_val_ce, last_val_nll_by_position
 
         was_training = model.training
+        predictor_was_training = predictor.training if predictor is not None else None
         try:
             last_train_ce = evaluate(model, train_eval_loader, cfg, device)
             last_val_ce, last_val_nll_by_position = evaluate_with_positions(
@@ -547,11 +660,15 @@ def train_model(
             )
         finally:
             model.train(was_training)
+            if predictor is not None and predictor_was_training is not None:
+                predictor.train(predictor_was_training)
         next_eval_count = eval_count + 1
         row: dict[str, Any] = {
             "epoch": epoch,
             "global_step": global_step,
             "running_train_ce": running_train_ce,
+            "running_aux_loss": running_aux_loss,
+            "running_total_loss": running_total_loss,
             "samples_seen": samples_seen,
             "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
             "train_ce": last_train_ce,
@@ -559,6 +676,10 @@ def train_model(
             "val_nll_by_position": [float(value) for value in last_val_nll_by_position],
             "val_last_position_nll": last_val_nll_by_position[-1],
             "lr": float(optimizer.param_groups[0]["lr"]),
+            "auxiliary_weight": (
+                float(cfg.auxiliary.weight) if cfg.auxiliary.mode != "none" else None
+            ),
+            "target_layer": cfg.auxiliary.target_layer,
         }
 
         if (
@@ -587,10 +708,13 @@ def train_model(
 
         if verbose:
             diagnostic_note = " +diagnostics" if "diagnostics" in row else ""
+            aux_note = (
+                f" aux={running_aux_loss:.6f}" if running_aux_loss is not None else ""
+            )
             print(
                 f"epoch={epoch:4d} step={global_step:7d} "
                 f"train_ce={last_train_ce:.6f} val_ce={last_val_ce:.6f} "
-                f"lr={row['lr']:.3e}{diagnostic_note}"
+                f"lr={row['lr']:.3e}{aux_note}{diagnostic_note}"
             )
 
         if out is not None and cfg.train.save_checkpoints:
@@ -598,6 +722,7 @@ def train_model(
                 save_checkpoint(
                     out / "best.pt",
                     model=model,
+                    predictor=predictor,
                     optimizer=optimizer,
                     cfg=cfg,
                     epoch=epoch,
@@ -616,6 +741,7 @@ def train_model(
                 save_checkpoint(
                     out / "checkpoints" / f"step_{global_step:08d}.pt",
                     model=model,
+                    predictor=predictor,
                     optimizer=optimizer,
                     cfg=cfg,
                     epoch=epoch,
@@ -628,7 +754,12 @@ def train_model(
                 )
 
     if resume_from is None and cfg.train.eval_at_start:
-        record_evaluation(epoch=0, running_train_ce=None)
+        record_evaluation(
+            epoch=0,
+            running_train_ce=None,
+            running_aux_loss=None,
+            running_total_loss=None,
+        )
         save_update_checkpoint_if_due(epoch=0)
 
     update_based_evaluation = cfg.train.eval_every_updates is not None
@@ -637,7 +768,11 @@ def train_model(
         if cfg.train.max_updates is not None and global_step >= cfg.train.max_updates:
             break
         model.train()
-        running_loss = 0.0
+        if predictor is not None:
+            predictor.train()
+        running_ntp = 0.0
+        running_aux = 0.0
+        running_total = 0.0
         seen = 0
         for tokens in train_loader:
             tokens = tokens.to(device, non_blocking=True)
@@ -648,15 +783,22 @@ def train_model(
                 warmup_updates=warmup_updates,
             )
             optimizer.zero_grad(set_to_none=True)
-            loss = loss_from_tokens(model, tokens)
-            loss.backward()
+            ntp_loss, aux_loss, total_loss = training_losses(model, predictor, tokens, cfg)
+            total_loss.backward()
             if cfg.train.grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), cfg.train.grad_clip)
+                torch.nn.utils.clip_grad_norm_(
+                    _clip_parameters(model, predictor),
+                    cfg.train.grad_clip,
+                )
             optimizer.step()
 
-            running_loss += float(loss.item()) * tokens.size(0)
-            seen += tokens.size(0)
-            samples_seen += tokens.size(0)
+            batch_n = tokens.size(0)
+            running_ntp += float(ntp_loss.item()) * batch_n
+            if aux_loss is not None:
+                running_aux += float(aux_loss.item()) * batch_n
+            running_total += float(total_loss.item()) * batch_n
+            seen += batch_n
+            samples_seen += batch_n
             global_step += 1
 
             reached_update_budget = (
@@ -666,19 +808,20 @@ def train_model(
 
             if update_based_evaluation:
                 update_interval = cfg.train.eval_every_updates
-                if (
-                    global_step % update_interval == 0
-                    or reached_update_budget
-                ):
+                if global_step % update_interval == 0 or reached_update_budget:
                     record_evaluation(
                         epoch=epoch,
-                        running_train_ce=running_loss / max(seen, 1),
+                        running_train_ce=running_ntp / max(seen, 1),
+                        running_aux_loss=(
+                            running_aux / max(seen, 1) if predictor is not None else None
+                        ),
+                        running_total_loss=running_total / max(seen, 1),
                     )
 
             save_update_checkpoint_if_due(epoch=epoch)
 
-            # Stop before DataLoader requests another batch, so the sampler
-            # state in a mid-epoch checkpoint is exactly reproducible.
+            # Stop before DataLoader requests another batch, so sampler state
+            # in a mid-epoch checkpoint is exactly reproducible.
             if reached_update_budget:
                 stop_training = True
                 break
@@ -687,20 +830,29 @@ def train_model(
             if epoch == cfg.train.max_epochs and global_step != last_evaluated_step:
                 record_evaluation(
                     epoch=epoch,
-                    running_train_ce=running_loss / max(seen, 1),
+                    running_train_ce=running_ntp / max(seen, 1),
+                    running_aux_loss=(
+                        running_aux / max(seen, 1) if predictor is not None else None
+                    ),
+                    running_total_loss=running_total / max(seen, 1),
                 )
             if stop_training:
                 break
             continue
 
-        running_train_ce = running_loss / max(seen, 1)
+        running_train_ce = running_ntp / max(seen, 1)
         should_eval = (
             epoch % cfg.train.eval_every_epochs == 0
             or epoch == cfg.train.max_epochs
             or stop_training
         )
         if should_eval:
-            record_evaluation(epoch=epoch, running_train_ce=running_train_ce)
+            record_evaluation(
+                epoch=epoch,
+                running_train_ce=running_train_ce,
+                running_aux_loss=(running_aux / max(seen, 1) if predictor is not None else None),
+                running_total_loss=running_total / max(seen, 1),
+            )
 
         if stop_training:
             break
@@ -710,11 +862,12 @@ def train_model(
 
     final_epoch = int(history[-1]["epoch"])
     if out is not None and cfg.train.save_checkpoints:
-        # Save the true final training state before loading the best-validation
-        # weights for the one-time test evaluation.
+        # Save the true final training state before loading best-validation
+        # backbone weights for the one-time test evaluation.
         save_checkpoint(
             out / "last.pt",
             model=model,
+            predictor=predictor,
             optimizer=optimizer,
             cfg=cfg,
             epoch=final_epoch,
@@ -726,7 +879,7 @@ def train_model(
             rules=rules,
         )
 
-    # Test is touched only after validation-based model selection is complete.
+    # Test is touched only after NTP validation-based selection is complete.
     model.load_state_dict(best_state, strict=True)
     model.to(device)
     selected_val_ce, selected_val_nll_by_position = evaluate_with_positions(
@@ -740,6 +893,8 @@ def train_model(
             cfg.rhm.L, v=cfg.rhm.v, m=cfg.rhm.m, s=cfg.rhm.s
         )
 
+    backbone_params = model.num_parameters()
+    aux_params = sum(p.numel() for p in predictor.parameters()) if predictor is not None else 0
     metrics: dict[str, Any] = {
         "train_size": len(train_dataset),
         "val_size": len(val_dataset),
@@ -766,16 +921,24 @@ def train_model(
         "val_nll_by_position": selected_val_nll_by_position,
         "last_val_nll_by_position": last_val_nll_by_position,
         "test_nll_by_position": test_nll_by_position,
-        "num_parameters": model.num_parameters(),
+        "num_parameters": backbone_params,
+        "backbone_num_parameters": backbone_params,
+        "auxiliary_num_parameters": aux_params,
+        "total_num_parameters": backbone_params + aux_params,
         "device": str(device),
         "objective": cfg.objective.mode,
+        "auxiliary_mode": cfg.auxiliary.mode,
+        "auxiliary_target_layer": cfg.auxiliary.target_layer,
+        "auxiliary_weight": (
+            float(cfg.auxiliary.weight) if cfg.auxiliary.mode != "none" else None
+        ),
         "history": history,
     }
 
     if out is not None:
-        with open(out / "metrics.json", "w", encoding="utf-8") as f:
-            import json
+        import json
 
+        with open(out / "metrics.json", "w", encoding="utf-8") as f:
             json.dump(metrics, f, indent=2)
 
     return metrics
