@@ -22,7 +22,7 @@ The screen used ordinary causal next-token prediction only:
 
 - `v=n=16`, `m=4`, `s=2`, `L=5`, grammar seed `0`;
 - an 8-layer, 8-head, width-256 nanoGPT-style causal Transformer;
-- `P ∈ {16,384, 32,768, 65,536}`;
+- `P ∈ {16.384, 32.768, 65.536}`;
 - 5,000 optimizer updates, batch size 256, MPS, and evaluations every 250 updates;
 - exact self-contained checkpoints at steps `0, 500, ..., 5,000`;
 - 2,048 held-out diagnostic sequences, 500 probe optimization steps;
