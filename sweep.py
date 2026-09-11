@@ -12,6 +12,7 @@ from pathlib import Path
 import torch
 
 from config import SweepConfig
+from provenance import file_sha256, git_provenance
 from rhm.dataset import LeafSequenceDataset, build_rhm_bundle
 from training import train_model
 
@@ -34,6 +35,49 @@ def _existing_keys(metrics_path: Path) -> set[tuple[int, int, int]]:
     return keys
 
 
+def fixed_exposure_budget(
+    *, train_size: int, batch_size: int, samples_per_example: int
+) -> tuple[int, int]:
+    """Return updates for complete dataset passes at a fixed exposure target."""
+    samples_float = float(samples_per_example)
+    if (
+        train_size <= 0
+        or batch_size <= 0
+        or not math.isfinite(samples_float)
+        or samples_float <= 0
+        or not samples_float.is_integer()
+    ):
+        raise ValueError(
+            "train_size and batch_size must be positive; samples_per_example must be a positive whole number"
+        )
+    effective_batch_size = min(int(batch_size), int(train_size))
+    updates_per_epoch = math.ceil(train_size / effective_batch_size)
+    return int(samples_float) * updates_per_epoch, updates_per_epoch
+
+
+def _validate_resume_state(
+    *, metrics_path: Path, snapshot_path: Path, snapshot: dict[str, object], resume: bool
+) -> None:
+    """Reject result reuse when the sweep provenance cannot be verified."""
+    has_metrics = metrics_path.exists() and metrics_path.stat().st_size > 0
+    if has_metrics and not resume:
+        raise RuntimeError(
+            f"{metrics_path} already contains results; use --resume or a new output directory"
+        )
+    if not resume:
+        return
+    if has_metrics and not snapshot_path.exists():
+        raise RuntimeError(
+            f"cannot resume {metrics_path}: existing results have no sweep_config.json"
+        )
+    if snapshot_path.exists():
+        previous = json.loads(snapshot_path.read_text(encoding="utf-8"))
+        if previous != snapshot:
+            raise RuntimeError(
+                "refusing to mix results: existing sweep_config.json differs from requested config"
+            )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, help="JSON sweep config")
@@ -45,6 +89,9 @@ def main() -> None:
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
     metrics_path = out / "metrics.jsonl"
+    snapshot_path = out / "sweep_config.json"
+    config_path = Path(args.config).resolve()
+    provenance = git_provenance(Path(__file__).resolve().parent)
     snapshot = {
         "experiment": sweep.experiment.to_dict(),
         "train_sizes": sweep.train_sizes,
@@ -56,19 +103,37 @@ def main() -> None:
             else None
         ),
         "samples_per_example": sweep.samples_per_example,
+        "input_config": str(config_path),
+        "input_config_sha256": file_sha256(config_path),
+        **provenance,
+        "effective_train_settings": {
+            str(P): {
+                "batch_size": min(sweep.experiment.train.batch_size, P),
+                "max_updates": (
+                    fixed_exposure_budget(
+                        train_size=P,
+                        batch_size=sweep.experiment.train.batch_size,
+                        samples_per_example=sweep.samples_per_example,
+                    )[0]
+                    if sweep.samples_per_example is not None
+                    else sweep.experiment.train.max_updates
+                ),
+                "max_epochs": (
+                    max(sweep.experiment.train.max_epochs, sweep.samples_per_example)
+                    if sweep.samples_per_example is not None
+                    else sweep.experiment.train.max_epochs
+                ),
+            }
+            for P in sweep.train_sizes
+        },
     }
-    snapshot_path = out / "sweep_config.json"
 
-    if metrics_path.exists() and metrics_path.stat().st_size > 0 and not args.resume:
-        raise RuntimeError(
-            f"{metrics_path} already contains results; use --resume or a new output directory"
-        )
-    if args.resume and snapshot_path.exists():
-        previous = json.loads(snapshot_path.read_text(encoding="utf-8"))
-        if previous != snapshot:
-            raise RuntimeError(
-                "refusing to mix results: existing sweep_config.json differs from requested config"
-            )
+    _validate_resume_state(
+        metrics_path=metrics_path,
+        snapshot_path=snapshot_path,
+        snapshot=snapshot,
+        resume=args.resume,
+    )
 
     completed = _existing_keys(metrics_path) if args.resume else set()
     with open(snapshot_path, "w", encoding="utf-8") as f:
@@ -122,17 +187,21 @@ def main() -> None:
                 cfg.model_seed = model_seed
                 cfg.data.train_size = P
                 if sweep.samples_per_example is not None:
-                    cfg.train.max_updates = math.ceil(
-                        sweep.samples_per_example * P / cfg.train.batch_size
+                    cfg.train.max_updates, _ = fixed_exposure_budget(
+                        train_size=P,
+                        batch_size=cfg.train.batch_size,
+                        samples_per_example=sweep.samples_per_example,
                     )
-                    updates_per_epoch = math.ceil(P / cfg.train.batch_size)
                     cfg.train.max_epochs = max(
                         cfg.train.max_epochs,
-                        math.ceil(cfg.train.max_updates / updates_per_epoch),
+                        sweep.samples_per_example,
                     )
                 cfg.validate()
                 train_ds = LeafSequenceDataset(bundle.train.leaves[:P])
                 run_dir = grammar_dir / f"model_{model_seed}" / f"P_{P}"
+                run_dir.mkdir(parents=True, exist_ok=True)
+                with open(run_dir / "config.json", "w", encoding="utf-8") as f:
+                    json.dump(cfg.to_dict(), f, indent=2)
                 print(f"\n=== grammar={grammar_seed} model_seed={model_seed} P={P} ===")
                 metrics = train_model(
                     cfg,
@@ -152,6 +221,7 @@ def main() -> None:
                         "test_seed": cfg.rhm.test_seed,
                         "effective_max_updates": cfg.train.max_updates,
                         "samples_per_example": sweep.samples_per_example,
+                        "code_commit": provenance["code_commit"],
                     }
                 )
                 with open(metrics_path, "a", encoding="utf-8") as f:

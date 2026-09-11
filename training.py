@@ -480,6 +480,7 @@ def train_model(
             "history": history,
             "eval_count": eval_count,
             "samples_seen": samples_seen,
+            "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
             "last_train_ce": last_train_ce,
             "last_val_ce": last_val_ce,
             "last_val_nll_by_position": last_val_nll_by_position,
@@ -490,6 +491,39 @@ def train_model(
             "train_sampler": train_sampler.state_dict(),
             "train_loader": train_loader_generator.get_state(),
         }
+
+    def save_update_checkpoint_if_due(*, epoch: int) -> None:
+        """Save a checkpoint at an exact optimizer-step boundary when requested."""
+        interval = cfg.train.checkpoint_every_updates
+        if (
+            out is None
+            or not cfg.train.save_checkpoints
+            or interval is None
+            or global_step % interval != 0
+        ):
+            return
+        if history and int(history[-1]["global_step"]) == global_step:
+            metrics = dict(history[-1])
+        else:
+            metrics = {
+                "epoch": epoch,
+                "global_step": global_step,
+                "samples_seen": samples_seen,
+                "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
+            }
+        save_checkpoint(
+            out / "checkpoints" / f"step_{global_step:08d}.pt",
+            model=model,
+            optimizer=optimizer,
+            cfg=cfg,
+            epoch=epoch,
+            global_step=global_step,
+            metrics=metrics,
+            loader_states=loader_states(),
+            trainer_state=trainer_state(),
+            best_state=best_state,
+            rules=rules,
+        )
 
     last_evaluated_step: Optional[int] = None
 
@@ -519,6 +553,7 @@ def train_model(
             "global_step": global_step,
             "running_train_ce": running_train_ce,
             "samples_seen": samples_seen,
+            "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
             "train_ce": last_train_ce,
             "val_ce": last_val_ce,
             "val_last_position_nll": last_val_nll_by_position[-1],
@@ -573,7 +608,8 @@ def train_model(
                     rules=rules,
                 )
             if (
-                cfg.train.checkpoint_every_evals is not None
+                cfg.train.checkpoint_every_updates is None
+                and cfg.train.checkpoint_every_evals is not None
                 and eval_count % cfg.train.checkpoint_every_evals == 0
             ):
                 save_checkpoint(
@@ -592,6 +628,7 @@ def train_model(
 
     if resume_from is None and cfg.train.eval_at_start:
         record_evaluation(epoch=0, running_train_ce=None)
+        save_update_checkpoint_if_due(epoch=0)
 
     update_based_evaluation = cfg.train.eval_every_updates is not None
     stop_training = False
@@ -636,6 +673,8 @@ def train_model(
                         epoch=epoch,
                         running_train_ce=running_loss / max(seen, 1),
                     )
+
+            save_update_checkpoint_if_due(epoch=epoch)
 
             # Stop before DataLoader requests another batch, so the sampler
             # state in a mid-epoch checkpoint is exactly reproducible.
@@ -721,6 +760,7 @@ def train_model(
         "last_val_last_position_nll": last_val_nll_by_position[-1],
         "global_step": global_step,
         "total_samples_seen": samples_seen,
+        "total_tokens_seen": samples_seen * (input_block_size(cfg) - 1),
         "max_updates": cfg.train.max_updates,
         "val_nll_by_position": selected_val_nll_by_position,
         "last_val_nll_by_position": last_val_nll_by_position,

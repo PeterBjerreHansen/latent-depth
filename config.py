@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 import json
+import math
 from pathlib import Path
 from typing import Any, Optional
 
@@ -129,6 +130,7 @@ class TrainConfig:
     deterministic_strict: bool = False
     save_checkpoints: bool = True
     checkpoint_every_evals: Optional[int] = None
+    checkpoint_every_updates: Optional[int] = None
 
     def validate(self) -> None:
         if self.batch_size <= 0 or self.max_epochs <= 0 or self.eval_every_epochs <= 0:
@@ -139,6 +141,8 @@ class TrainConfig:
             raise ValueError("max_updates must be positive when provided")
         if self.checkpoint_every_evals is not None and self.checkpoint_every_evals <= 0:
             raise ValueError("checkpoint_every_evals must be positive when provided")
+        if self.checkpoint_every_updates is not None and self.checkpoint_every_updates <= 0:
+            raise ValueError("checkpoint_every_updates must be positive when provided")
         if self.deterministic_strict and not self.deterministic:
             raise ValueError("deterministic_strict requires deterministic=true")
         if self.grad_clip < 0 or self.num_workers < 0:
@@ -200,7 +204,7 @@ class SweepConfig:
     grammar_seeds: list[int]
     model_seeds: list[int]
     replicates: Optional[list[tuple[int, int]]] = None
-    samples_per_example: Optional[float] = None
+    samples_per_example: Optional[int] = None
 
     @classmethod
     def from_json(cls, path: str | Path) -> "SweepConfig":
@@ -223,15 +227,24 @@ class SweepConfig:
         if len(set(train_sizes)) != len(train_sizes):
             raise ValueError("train_sizes must be unique")
         samples_per_example = d.get("samples_per_example")
-        if samples_per_example is not None and float(samples_per_example) <= 0:
-            raise ValueError("samples_per_example must be positive when provided")
+        if samples_per_example is not None:
+            samples_float = float(samples_per_example)
+            if (
+                not math.isfinite(samples_float)
+                or samples_float <= 0
+                or not samples_float.is_integer()
+            ):
+                raise ValueError(
+                    "samples_per_example must be a positive whole number when provided"
+                )
+            samples_per_example = int(samples_float)
         return cls(
             exp,
             sorted(train_sizes),
             grammar_seeds,
             model_seeds,
             replicates,
-            None if samples_per_example is None else float(samples_per_example),
+            samples_per_example,
         )
 
     def replicate_pairs(self) -> list[tuple[int, int]]:

@@ -152,7 +152,11 @@ def test_training_metrics_report_last_position_and_exposure_baselines(tmp_path: 
     assert metrics["test_last_position_nll"] == metrics["test_nll_by_position"][-1]
     assert metrics["uniform_baseline_nll"] == pytest.approx(torch.log(torch.tensor(float(cfg.rhm.v))).item())
     assert metrics["total_samples_seen"] == cfg.train.max_updates * cfg.train.batch_size
+    assert metrics["total_tokens_seen"] == (
+        metrics["total_samples_seen"] * (cfg.rhm.s**cfg.rhm.L - 1)
+    )
     assert metrics["history"][-1]["samples_seen"] == metrics["total_samples_seen"]
+    assert metrics["history"][-1]["tokens_seen"] == metrics["total_tokens_seen"]
     assert metrics["history"][-1]["val_last_position_nll"] == metrics["last_val_last_position_nll"]
 
     best_model, _, _ = load_model_from_checkpoint(tmp_path / "best.pt")
@@ -494,7 +498,8 @@ def test_diagnostics_do_not_change_training_trajectory(tmp_path: Path):
 
 def test_periodic_checkpoint_is_self_contained_with_rules(tmp_path: Path):
     cfg = _tiny_cfg()
-    cfg.train.checkpoint_every_evals = 1
+    cfg.train.checkpoint_every_evals = None
+    cfg.train.checkpoint_every_updates = 2
     bundle = build_rhm_bundle(
         v=cfg.rhm.v, n=cfg.rhm.n, m=cfg.rhm.m, s=cfg.rhm.s, L=cfg.rhm.L,
         rule_seed=cfg.rhm.rule_seed, train_seed=cfg.rhm.train_seed,
@@ -509,7 +514,42 @@ def test_periodic_checkpoint_is_self_contained_with_rules(tmp_path: Path):
     )
     snapshots = sorted((tmp_path / "checkpoints").glob("step_*.pt"))
     assert snapshots
+    assert [path.name for path in snapshots] == ["step_00000002.pt"]
     checkpoint = torch.load(snapshots[-1], map_location="cpu", weights_only=False)
     assert checkpoint["rules"] is not None
     for level in bundle.rules:
         assert torch.equal(checkpoint["rules"][level], bundle.rules[level])
+
+
+def test_update_checkpoint_metrics_match_unmeasured_checkpoint_step(tmp_path: Path):
+    cfg = _tiny_cfg()
+    cfg.train.max_updates = 4
+    cfg.train.max_epochs = 10
+    cfg.train.eval_every_updates = 2
+    cfg.train.checkpoint_every_updates = 3
+    bundle = build_rhm_bundle(
+        v=cfg.rhm.v, n=cfg.rhm.n, m=cfg.rhm.m, s=cfg.rhm.s, L=cfg.rhm.L,
+        rule_seed=cfg.rhm.rule_seed, train_seed=cfg.rhm.train_seed,
+        val_seed=cfg.rhm.val_seed, test_seed=cfg.rhm.test_seed,
+        train_size=cfg.data.train_size, val_size=cfg.data.val_size,
+        test_size=cfg.data.test_size,
+    )
+
+    train_model(
+        cfg,
+        LeafSequenceDataset(bundle.train.leaves),
+        LeafSequenceDataset(bundle.val.leaves),
+        LeafSequenceDataset(bundle.test.leaves),
+        output_dir=tmp_path,
+        rules=bundle.rules,
+        verbose=False,
+    )
+
+    checkpoint = torch.load(
+        tmp_path / "checkpoints" / "step_00000003.pt",
+        map_location="cpu",
+        weights_only=False,
+    )
+    assert checkpoint["global_step"] == 3
+    assert checkpoint["metrics"]["global_step"] == 3
+    assert checkpoint["metrics"]["tokens_seen"] == 3 * cfg.train.batch_size * (cfg.rhm.s**cfg.rhm.L - 1)

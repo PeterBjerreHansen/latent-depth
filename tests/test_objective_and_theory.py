@@ -1,10 +1,13 @@
 import math
+import json
+from pathlib import Path
 
 import pytest
 import torch
 
 from config import ExperimentConfig, SweepConfig
 from rhm.theory import loss_upper_bounds, sample_complexities
+from sweep import fixed_exposure_budget
 from training import input_block_size, objective_inputs
 
 
@@ -59,3 +62,23 @@ def test_sweep_accepts_fixed_exposure_budget():
     assert sweep.samples_per_example is None
     sweep = SweepConfig.from_json("configs/next_token_sweep_fixed_exposure.json")
     assert sweep.samples_per_example == 8.0
+
+
+def test_fixed_exposure_budget_uses_complete_dataset_passes():
+    assert fixed_exposure_budget(
+        train_size=32, batch_size=64, samples_per_example=8
+    ) == (8, 1)
+    assert fixed_exposure_budget(
+        train_size=100, batch_size=64, samples_per_example=8
+    ) == (16, 2)
+    with pytest.raises(ValueError, match="whole number"):
+        fixed_exposure_budget(train_size=32, batch_size=64, samples_per_example=1.5)
+
+
+def test_sweep_rejects_fractional_exposure_target(tmp_path: Path):
+    config = json.loads(Path("configs/next_token_sweep.json").read_text(encoding="utf-8"))
+    config["samples_per_example"] = 1.5
+    path = tmp_path / "fractional.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="whole number"):
+        SweepConfig.from_json(path)
