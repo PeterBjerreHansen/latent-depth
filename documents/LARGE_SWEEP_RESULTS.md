@@ -39,8 +39,9 @@ overfit strongly under the fixed 1,000-update budget, which explains why their
 selected held-out metrics are worse than the uniform baseline and why the
 curve is not monotonic at small `P`.
 
-This is evidence for stagewise learning in this fixed-grammar causal baseline,
-not a reproduction of the 2025 or 2026 paper protocols. The run uses a
-full-sequence causal objective, fixed offline data, and a nanoGPT-style decoder;
-the reported final-token metric is provided for the closest comparison to
-last-token RHM curves.
+This is evidence for a sharp data-size transition in this fixed-grammar causal
+baseline, not evidence that successive latent levels were acquired at distinct
+training ages. It is also not a reproduction of the 2025 or 2026 paper
+protocols. The run uses a full-sequence causal objective, fixed offline data,
+and a nanoGPT-style decoder; the reported final-token metric is provided for
+the closest comparison to last-token RHM curves.

@@ -4,11 +4,15 @@
 ./pytest.ini
 ./.gitignore
 ./config.py
+./provenance.py
 ./training.py
 ./train.py
 ./diagnose.py
+./diagnose_trajectory.py
+./documents/expectation.md
 ./sweep.py
 ./plot.py
+./plot_trajectory.py
 ./validate_implementation.py
 ./nanogpt/__init__.py
 ./nanogpt/model.py
@@ -26,6 +30,7 @@
 ./configs/null_control.json
 ./configs/diagnostics_smoke.json
 ./configs/diagnostics_pilot.json
+./configs/developmental_l5_screen.json
 ./diagnostics/__init__.py
 ./diagnostics/latent.py
 ./tests/test_model.py
@@ -33,6 +38,7 @@
 ./tests/test_rhm.py
 ./tests/test_training.py
 ./tests/test_diagnostics.py
+./tests/test_sweep.py
 ./documents/IMPLEMENTATION_NOTES.md
 ./documents/PROVENANCE.md
 ./documents/VALIDATION.md

@@ -47,15 +47,21 @@ model.
 Evaluation also reports final-position NLL (the closest analogue to the
 last-token curves in the RHM literature), the uniform `log(v)` baseline, the
 last-token theory bounds when the hierarchy is non-saturated, and cumulative
-samples seen. A fixed-exposure sweep can set `samples_per_example` so
-different training-set sizes receive matched data exposure rather than a
-matched update count.
+sequence samples and prediction tokens seen. A fixed-exposure sweep can set a
+positive whole-number `samples_per_example`; it then runs complete dataset
+passes using the effective DataLoader batch size, so different training-set
+sizes receive matched data exposure rather than a matched update count.
 
 When `train.eval_every_updates` is set, evaluation and checkpoint selection
 use a fixed optimizer-step cadence instead of `eval_every_epochs`. The optional
 `train.eval_at_start` flag records the untrained step-zero baseline. Final
 top-level `val_*` fields are recomputed on the validation-selected model;
 `last_val_*` fields retain the final training-state measurements.
+
+For checkpointed training-age trajectories, use
+`train.checkpoint_every_updates`. These snapshots are written at exact update
+boundaries even when the evaluation cadence differs, and retain the same full
+resume state as ordinary checkpoints.
 
 Training is controlled by a fixed `max_updates` budget when one is provided.
 The old near-zero training-CE stopping threshold is intentionally absent: full
@@ -71,9 +77,12 @@ hardware-specific attention kernels can be used for baseline runs.
 
 `diagnostics/latent.py` contains optional observers for the frozen NTP
 backbone. The linear probe reads layer 0 (the embedding stream) and each
-post-block residual stream. Synonym clustering forces a different production
-rule for an on-grammar realization of the same latent and compares that change
-with an in-distribution example whose corresponding latent is different.
+post-block residual stream. Before finite-step optimization, each feature is
+standardized from the probe-fitting half independently for every level and
+layer; those fit statistics are applied unchanged to evaluation features.
+Synonym clustering forces a different production rule for an on-grammar
+realization of the same latent and compares that change with an in-distribution
+example whose corresponding latent is different.
 Variable sensitivity performs the complementary latent-replacement
 intervention. Offline diagnostics can additionally fit shuffled-label probes
 and probes on an untrained backbone.
@@ -90,7 +99,10 @@ Diagnostics preserve the model's parameters, train/eval mode, and global RNG
 states. Probe reports retain the theoretical uniform chance level and also
 report empirical majority and balanced-accuracy baselines. `diagnose.py`
 regenerates the selected validation/test split from the checkpoint's stored
-grammar and provides an offline parity path.
+grammar and provides an offline parity path. `diagnose_trajectory.py` applies
+that observer to every exact-step snapshot, while `plot_trajectory.py` plots
+NTP loss, accessibility, synonym invariance, and latent-replacement
+sensitivity against optimizer updates.
 
 ## Checkpoint semantics
 
@@ -102,6 +114,17 @@ snapshots use the same self-contained format. A resume request may change only
 the update/epoch budget; if it supplies a grammar, it must match the stored
 grammar exactly. The sampler stops immediately after the requested update so a
 mid-epoch resume does not skip a prefetched batch.
+
+Sweep outputs also record the input-config digest, code revision, worktree state,
+and effective per-size settings; each run directory contains the exact
+resolved experiment config used for that run. Update-based checkpoint metadata
+always describes the checkpoint's own optimizer step; when no evaluation occurs
+at that step, it contains only the step and exposure counters.
+
+The next experimental round is still a baseline decision gate. Before adding
+any latent auxiliary objective or changing the training target, compare the
+training-age trajectory and diagnostics with the repository-level
+[`expectation.md`](expectation.md) and record an explicit go/no-go decision.
 
 ## Scope
 

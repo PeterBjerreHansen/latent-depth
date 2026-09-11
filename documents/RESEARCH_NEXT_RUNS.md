@@ -2,6 +2,12 @@
 
 ## Scope and current context
 
+The upcoming developmental baseline must be evaluated against the
+repository-level [baseline expectation and go/no-go gate](expectation.md)
+before any latent auxiliary loss is implemented. The baseline's purpose is to
+establish a stable, observable developmental clock; a positive NTP curve alone
+does not authorize moving to the auxiliary experiment.
+
 This note uses only the requested primary sources: upstream
 [nanoGPT `model.py`](https://github.com/karpathy/nanoGPT/blob/master/model.py), the
 upstream [RHM repository](https://github.com/pcsl-epfl/hierarchy-learning)
@@ -176,3 +182,7 @@ The matrix cannot, by itself, support any of the following:
 The recommended order is therefore **V1--V4 → C1 → C2 → D1/D2**. Stop and
 repair the relevant implementation seam if a validation run fails; do not use
 the learning-curve or representation results to diagnose a failing oracle.
+After the developmental screen and confirmation runs, compare the complete
+trajectory with [`expectation.md`](expectation.md) and record **go**,
+**no-go**, or **rerun baseline**. Implement the latent auxiliary loss only
+after an explicit **go** decision.

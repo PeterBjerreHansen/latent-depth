@@ -311,6 +311,14 @@ Build a raw-leaf RHM generator, exact small-grammar inference, and a standard de
 
 Run NTP, a fixed shallow target, a fixed deeper target, and a predetermined shallow-to-deep schedule early in the project. Keep NTP active in all latent runs. Add a matched progressive-freezing arm on a subset to connect directly to the vision precedent. These runs test whether the setting contains a promising developmental phenomenon; theory diagnostics should support this comparison rather than delay it.
 
+For the current implementation round, the ordinary NTP developmental screen
+comes first. Compare its held-out NLL, layer-by-level probes, synonym
+invariance, latent-replacement sensitivity, and transition ordering with the
+repository-level [baseline expectation](expectation.md). Do not implement
+the latent auxiliary objective or begin the fixed-target comparison until that
+gate has an explicit **go** decision; a **no-go** or **rerun baseline** result
+means adjusting the baseline regime first.
+
 Validate causal indexing, stop-gradient behavior, and grammar conditionals. Keep optimization time separate from unique-sample exposure by studying a fixed dataset first, then varying dataset size. Record ordinary-layer probes and target stability throughout training.
 
 **Output:** reproducible pilot learning curves and representation trajectories. **Decision:** select an observable regime on development data; retain unfavorable confirmation results.

@@ -78,6 +78,11 @@ python sweep.py \
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep.py \
   --config configs/next_token_sweep_large_mps.json \
   --output-dir runs/next_token_sweep_large_mps
+
+# Focused developmental L=5 screen.
+PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep.py \
+  --config configs/developmental_l5_screen.json \
+  --output-dir runs/developmental_l5_screen
 ```
 
 Plot completed sweep results:
@@ -99,6 +104,24 @@ Use `--resume` with `sweep.py` to continue an interrupted sweep. Existing
 results are checked against the saved sweep configuration before they are
 reused.
 
+For one completed L=5 run, diagnose every exact-step checkpoint and plot its
+training-age trajectory:
+
+```bash
+python diagnose_trajectory.py \
+  --run-dir runs/developmental_l5_screen/grammar_0/model_0/P_32768 \
+  --output-dir runs/developmental_l5_screen/grammar_0/model_0/P_32768/trajectory \
+  --device mps \
+  --num-sequences 2048 \
+  --probe-steps 500 \
+  --controls
+
+python plot_trajectory.py \
+  --trajectory runs/developmental_l5_screen/grammar_0/model_0/P_32768/trajectory/trajectory.json \
+  --metrics runs/developmental_l5_screen/grammar_0/model_0/P_32768/metrics.json \
+  --output runs/developmental_l5_screen/grammar_0/model_0/P_32768/trajectory/trajectory.png
+```
+
 ## Experimental hygiene
 
 Datasets are generated once per grammar and reused across training-set sizes.
@@ -107,10 +130,11 @@ after that selection. The sweep stores one JSON object per run in
 `metrics.jsonl`, plus the generated rule table and each run's checkpoints when
 enabled.
 
-When `samples_per_example` is present in a sweep configuration, every
-training-set size receives the same number of dataset exposures. Each result
-records both `global_step` and `total_samples_seen`, so reuse is not confused
-with a sample-complexity effect.
+When `samples_per_example` is present in a sweep configuration, it must be a
+positive whole number. Every training-set size then receives that many complete
+passes over its dataset, using the effective DataLoader batch size. Each result
+records `global_step`, `total_samples_seen`, and `total_tokens_seen`, so reuse is
+not confused with a sample-complexity effect.
 
 For comparisons across training-set sizes, set `train.eval_every_updates` to
 evaluate at a fixed optimizer-step cadence; it takes precedence over
@@ -118,9 +142,15 @@ evaluate at a fixed optimizer-step cadence; it takes precedence over
 baseline. Top-level `val_*` metrics describe the validation-selected model,
 while `last_val_*` metrics describe the final training state.
 
+Sweep snapshots record the input-config digest, code revision, worktree state,
+and effective per-size training settings. Each sweep run also writes its exact
+resolved experiment config beside `metrics.json`.
+
 The current code is a foundation for adding latent prediction or auxiliary
 losses later. Such additions should be explicit extensions to the causal
-next-token baseline rather than silently changing the training target.
+next-token baseline rather than silently changing the training target. Before
+implementing that extension, compare the next baseline round with the
+[pre-run expectations and go/no-go gate](documents/expectation.md).
 
 Current implementation and experiment summaries are in
 [`documents/VALIDATION_RESULTS.md`](documents/VALIDATION_RESULTS.md) and
@@ -151,7 +181,9 @@ particular non-causal representation-learning paper.
 Every checkpoint stores the RHM grammar when available, along with model,
 optimizer, RNG, sampler, history, and best-model state. Resume rejects a
 supplied grammar that differs from the checkpoint grammar. Periodic snapshots
-are written under `checkpoints/` when `checkpoint_every_evals` is configured.
+are written under `checkpoints/` when `checkpoint_every_evals` or the exact
+update-based `checkpoint_every_updates` is configured. The latter is preferred
+for training-age studies.
 
 ## Provenance
 
