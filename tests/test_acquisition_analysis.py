@@ -144,6 +144,12 @@ def test_same_layer_persistence_reports_onset_and_confirmation():
     assert level["accessibility"]["observer_layer"] == 1
     assert level["tau_accessibility"] == 100
     assert level["confirmation_step"] == 200
+    assert level["probe_milestone_status"]["0.75"] == {
+        "status": "observed",
+        "onset_step": 100,
+        "confirmed_step": 200,
+        "observer_layer": 1,
+    }
 
 
 def test_unreached_level_is_explicitly_not_confirmed():
@@ -155,12 +161,15 @@ def test_unreached_level_is_explicitly_not_confirmed():
     )
 
 
-def test_probe_milestones_are_independent_of_primary_accessibility():
+def test_probe_milestones_use_the_same_persistent_event():
     trajectory = _trajectory(
         balanced={2: [[0.1, 0.1, 0.1], [0.6, 0.1, 0.1], [0.8, 0.1, 0.1]]}
     )
     level = summarize_trajectory_data(trajectory, RULE)["levels"]["2"]
-    assert level["probe_milestones"] == {"0.50": 100, "0.75": 200, "0.90": None}
+    assert level["probe_milestones"] == {"0.50": 100, "0.75": None, "0.90": None}
+    assert level["probe_milestone_status"]["0.75"] == {
+        "status": "not_confirmed", "through_step": 200,
+    }
     assert level["probe_milestone_status"]["0.90"] == {
         "status": "not_confirmed", "through_step": 200,
     }
@@ -274,7 +283,7 @@ def test_target_depth_deltas_and_interval_keep_absolute_times():
     assert len(result["validation_ce_by_step"]) == len(steps)
 
 
-def test_censored_paired_comparisons_are_unavailable_without_bounds():
+def test_not_confirmed_paired_comparisons_are_unavailable_without_bounds():
     steps = (0, 50, 100, 150, 200, 250)
     ntp_summary = summarize_trajectory_data(_with_onsets(steps, h2=50, h3=150), RULE)
     target_summary = summarize_trajectory_data(_with_onsets(steps, h2=50, h3=999), RULE)

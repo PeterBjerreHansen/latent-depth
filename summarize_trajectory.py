@@ -105,27 +105,25 @@ def _event_for_layer(
     return {"status": "not_confirmed", "through_step": int(steps[-1])}
 
 
-def _milestone_event(
-    curve: Sequence[float], steps: Sequence[int], threshold: float
-) -> dict[str, Any]:
-    for value, step in zip(curve, steps):
-        if value >= threshold:
-            return {"status": "observed", "step": int(step)}
-    return {"status": "not_confirmed", "through_step": int(steps[-1])}
-
-
 def _first_milestone(
     layer_events: Mapping[str, Mapping[str, Any]], milestone: str
 ) -> dict[str, Any]:
     observed = [
-        (int(event["step"]), int(layer))
+        (int(event["onset_step"]), int(layer), int(event["confirmed_step"]))
         for layer, events in layer_events.items()
         for event in [events[milestone]]
         if event["status"] == "observed"
     ]
     if observed:
-        step, layer = min(observed, key=lambda item: (item[0], item[1]))
-        return {"status": "observed", "step": step, "observer_layer": layer}
+        onset_step, layer, confirmed_step = min(
+            observed, key=lambda item: (item[0], item[1])
+        )
+        return {
+            "status": "observed",
+            "onset_step": onset_step,
+            "confirmed_step": confirmed_step,
+            "observer_layer": layer,
+        }
     through_steps = {
         int(event["through_step"])
         for events in layer_events.values()
@@ -325,7 +323,11 @@ def summarize_trajectory_data(
             accessibility_pass = [value >= primary_threshold for value in balanced_curve]
             accessibility_event = _event_for_layer(accessibility_pass, steps, persistence)
             milestones = {
-                _threshold_key(threshold): _milestone_event(balanced_curve, steps, threshold)
+                _threshold_key(threshold): _event_for_layer(
+                    [value >= threshold for value in balanced_curve],
+                    steps,
+                    persistence,
+                )
                 for threshold in validated_rule["probe_milestones"]
             }
             layer_milestones[str(layer)] = milestones
@@ -379,7 +381,9 @@ def summarize_trajectory_data(
             key = _threshold_key(threshold)
             event = _first_milestone(layer_milestones, key)
             milestone_status[key] = event
-            compact_milestones[key] = int(event["step"]) if event["status"] == "observed" else None
+            compact_milestones[key] = (
+                int(event["onset_step"]) if event["status"] == "observed" else None
+            )
 
         levels_output[level] = {
             "completion_position": positions[level],

@@ -392,30 +392,52 @@ def _plot_layerwise_onsets(group: dict[str, Any], output_dir: Path) -> None:
     onset_dir = output_dir / "layerwise_onsets"
     onset_dir.mkdir(parents=True, exist_ok=True)
     for level in group["primary_levels"]:
-        rows = []
-        labels = []
+        rows: list[list[float]] = []
+        labels: list[str] = []
+        not_confirmed: list[list[bool]] = []
         for arm in group["arms"]:
             summary = arm["summary"]["levels"].get(str(level))
             if summary is None:
                 continue
             labels.append(arm["target"])
             values = []
+            missing = []
             for layer in sorted(summary["layerwise_onsets"], key=int):
                 event = summary["layerwise_onsets"][layer]
-                values.append(
-                    float(event.get("onset_step", event.get("through_step")))
-                )
+                observed = event["status"] == "observed"
+                values.append(float(event["onset_step"]) if observed else np.nan)
+                missing.append(not observed)
             rows.append(values)
+            not_confirmed.append(missing)
         if not rows:
             continue
         figure, axis = plt.subplots(figsize=(9.0, max(3.0, 0.45 * len(rows))))
-        image = axis.imshow(np.asarray(rows), aspect="auto", interpolation="nearest")
+        cmap = plt.get_cmap("viridis").copy()
+        cmap.set_bad(color="lightgray")
+        image = axis.imshow(
+            np.ma.masked_invalid(np.asarray(rows)),
+            aspect="auto",
+            interpolation="nearest",
+            cmap=cmap,
+        )
         axis.set_yticks(np.arange(len(labels)))
         axis.set_yticklabels(labels)
         axis.set_xlabel("observer layer")
         axis.set_ylabel("target arm")
         axis.set_title(f"H{level} layerwise accessibility onset")
-        axis.figure.colorbar(image, ax=axis, pad=0.01, label="onset / not-confirmed horizon")
+        axis.figure.colorbar(image, ax=axis, pad=0.01, label="observed onset step")
+        for row_index, missing in enumerate(not_confirmed):
+            for layer, is_missing in enumerate(missing):
+                if is_missing:
+                    axis.text(
+                        layer,
+                        row_index,
+                        "not\nconfirmed",
+                        ha="center",
+                        va="center",
+                        fontsize=7,
+                        color="black",
+                    )
         _save_figure(figure, onset_dir / f"h{level}.png")
 
 
