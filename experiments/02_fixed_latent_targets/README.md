@@ -41,11 +41,10 @@ It uses the Stage-01 exposure regime:
 - exact diagnostic checkpoints every 500 updates; and
 - NTP plus fixed target depths `j=0,...,8`.
 
-The earlier `lambda=0.1` screen is prior work. The active screen uses
-`lambda=0.3`, grammar seed 0, and model seed 0. All arms share the same
-grammar, data schedule, and training exposure. `lambda=1.0` is an exploratory
-follow-up; add its explicit config only after the active L5 result is reviewed
-if the result warrants a stronger weight-sensitivity question. A deeper `L=6`
+The screen uses `lambda=0.3`, grammar seed 0, and model seed 0. All arms share
+the same grammar, data schedule, and training exposure. `lambda=1.0` is an
+exploratory follow-up; add its explicit config only after the active L5 result
+is reviewed if the result warrants a stronger weight-sensitivity question. A deeper `L=6`
 screen is likewise a later, separately justified experiment rather than part
 of this runnable core.
 

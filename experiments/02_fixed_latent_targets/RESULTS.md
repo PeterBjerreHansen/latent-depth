@@ -27,7 +27,6 @@ not observed by the final checkpoint, it will be reported as “not confirmed by
 step T”; paired time differences involving an unconfirmed event will be
 explicitly unavailable rather than converted into a numeric bound.
 
-The earlier `lambda=0.1` screen is prior work and is not relabeled as this
-result. `lambda=1.0` and an extended hierarchy are conditional follow-ups.
-They are not part of the current runnable result and should not be interpreted
-before the active L5 screen is reviewed.
+`lambda=1.0` and an extended hierarchy are conditional follow-ups. They are
+not part of the current runnable result and should not be interpreted before
+the active L5 screen is reviewed.
