@@ -11,8 +11,8 @@ next causal question:
 > and H3?
 
 This is deliberately a fixed-target screen. It does **not** implement adaptive
-target selection, switching schedules, target mixtures, EMA teachers, or a
-lambda grid.
+target selection, switching schedules, target mixtures, or EMA teachers. The
+primary screen and the weight-sensitivity follow-ups each use one fixed lambda.
 
 ## Training objective
 
@@ -64,7 +64,7 @@ from identical GPT weights and receive the same minibatch ordering.
 ## Screen protocol
 
 The screen is defined by
-[`configs/target_depth_screen.json`](configs/target_depth_screen.json). It
+[`configs/target_depth_screen_lambda_0_1.json`](configs/target_depth_screen_lambda_0_1.json). It
 copies the Stage-01 canonical regime:
 
 - RHM: `v=n=16`, `m=4`, `s=2`, `L=5`;
@@ -85,25 +85,114 @@ The arms are
 The first screen includes every residual-stream depth so that a sparse result
 cannot be mistaken for a complete progressive-depth comparison.
 
-The first auxiliary weight is fixed at `lambda=0.1`. Do not sweep target depth
-and lambda simultaneously. Before looking at the screen, fix these practical
-margins:
+The primary target-depth screen uses `lambda=0.1`. The follow-up screens use
+the same complete target-depth grid at fixed `lambda=0.3` and `lambda=1.0`.
+These are separate fixed-weight screens, not an adaptive weighting experiment.
+Before looking at the results, use these practical margins:
 
 - one 500-update checkpoint is the minimum meaningful acquisition-time
   difference, because the trajectory diagnostics use exact 500-update saves;
 - a best-validation-CE increase of more than `0.01` over the paired NTP arm is
   an unacceptable NTP cost.
 
-A target is competitive when it advances H2 or H3 by at least one checkpoint
-without exceeding that NTP cost. If no target is competitive and no target
-exceeds the cost margin, run one pre-declared follow-up at `lambda=0.3`. If all
-auxiliary targets exceed the cost margin, run one at `lambda=0.03`. Otherwise
-freeze `0.1` and study target depth; do not choose lambda after inspecting
-individual target winners.
+The `lambda=0.3` and `lambda=1.0` screens are exploratory weight-sensitivity
+follow-ups. They do not replace the primary `lambda=0.1` target-depth result
+or authorize target selection from validation CE alone.
 
 Validation checkpoint selection remains based **only** on held-out NTP
 cross-entropy. `running_aux_loss` and `running_total_loss` are training
 observables, not selection criteria.
+
+## Pre-run expectations
+
+This section is the pre-run specification for the Stage-02 report. The report
+must compare the completed screens with these expectations. The expectations
+are directional: a target residual-stream depth is not the same thing as an
+RHM latent level, so we do not require `j=r` or a mathematically monotone
+mapping from target depth to latent level.
+
+### Expected target-depth pattern
+
+The main hypothesis is that the useful target depth changes with the level
+whose acquisition still offers meaningful NTP progress:
+
+| target depth | expected early levels H1/H2 | expected later levels H3/H4 | main interpretation risk |
+|---|---|---|---|
+| `j=0` embedding | possible early benefit, especially for surface prediction | little clean benefit expected | token and position information can produce a false shallow win |
+| `j=1--2` shallow post-block | strongest candidate for H2 acceleration | neutral or weaker H3/H4 effect | shallow supervision may consume capacity needed for later structure |
+| `j=3--4` intermediate | possible H2 benefit | plausible H3 benefit | a broad win may reflect generic regularization rather than target specificity |
+| `j=5--8` deep post-block | little early benefit expected | strongest candidate for H3/H4 acceleration | predicting a difficult target may add noisy or conflicting gradients |
+
+The cleanest positive result would therefore be a target-depth crossover: an
+early target has a negative `Delta tau` for H2 but not H3, while a later target
+has a more negative `Delta tau` for H3 (and H4 if it is reached). A single
+intermediate target that improves both levels is also useful, but it weakens
+the case for adaptive target selection.
+
+### What counts as evidence for the pattern
+
+For each fixed weight and target depth, compute the same-layer A+C acquisition
+time for every level and observer layer. The primary summary is
+
+```text
+Delta tau_r(lambda, j) = tau_AC(lambda, j, H_r) - tau_AC(NTP, H_r)
+```
+
+Negative values indicate earlier acquisition than the paired NTP control. A
+difference of less than one 500-update checkpoint is a practical tie. The
+report will show both the minimum onset over observer layers and the complete
+layerwise onset matrix, together with the onset layer. Probe-only onset is
+secondary because it can precede synonym invariance without showing the
+intended abstraction.
+
+The result is consistent with the main hypothesis when:
+
+- early target depths show their largest improvement on H2, with little or no
+  corresponding H3 improvement;
+- late target depths show their largest improvement on H3, and on H4 if H4 is
+  acquired within the budget;
+- the same-layer raw intervention contrast does not show persistent collapse;
+  and
+- the NTP cost remains acceptable: a best-validation-CE increase above `0.01`
+  over the paired NTP arm is a failure for that target/weight combination.
+
+The following outcomes are also informative and must be reported explicitly:
+
+- **No depth pattern:** all target depths have similar `tau` values. The
+  auxiliary objective may be ineffective or its effect may be generic rather
+  than depth-specific.
+- **Uniform acceleration:** every target depth advances H2 and H3 by about the
+  same amount. This supports an auxiliary-training effect but not the proposed
+  developmental specialization.
+- **One common winner:** one target depth advances both H2 and H3. This is a
+  useful fixed-target result, but provides little motivation for switching.
+- **Probe-only acceleration:** accessibility improves while A+C does not.
+  This is not evidence that the target speeds acquisition of the abstraction.
+
+### Where the auxiliary loss may do harm
+
+The auxiliary loss is not expected to improve every arm or every training age.
+The main failure modes are:
+
+- `j=0` improves early NTP or H1-like probes while synonym invariance and H2/H3
+  timing remain unchanged; this is a surface-token or position confound, not a
+  clean latent result;
+- deep targets delay H1/H2 because the model spends shared capacity predicting
+  a difficult future stream before early structure is established;
+- a larger weight lowers `running_aux_loss` but delays A+C acquisition or
+  worsens validation CE, indicating objective interference rather than useful
+  learning;
+- an arm reaches a better intermediate validation CE but degrades at later
+  checkpoints, indicating that the auxiliary objective has become harmful after
+  the useful transition window; or
+- the H2-to-H3 order is disrupted, or the raw `Q` contrast becomes persistently
+  non-positive, indicating that the auxiliary objective changed the
+  representation in a way that is not supporting the intended abstraction.
+
+`lambda=1.0` is therefore a stress test, not an expectation that more
+auxiliary pressure must be better. H1 remains supporting evidence because its
+signal is confounded, and H4 not being reached by step 5,000 is a censored
+observation rather than evidence that no target can accelerate H4.
 
 ## Run the target-depth screen
 
@@ -111,14 +200,14 @@ From the repository root:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
-  --config experiments/02_fixed_latent_targets/configs/target_depth_screen.json \
-  --output-dir runs/02_fixed_latent_targets/screen
+  --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_0_1.json \
+  --output-dir runs/02_fixed_latent_targets/screen_lambda_0_1
 ```
 
 The output layout is intentionally explicit:
 
 ```text
-runs/02_fixed_latent_targets/screen/
+runs/02_fixed_latent_targets/screen_lambda_0_1/
 ├── metrics.jsonl
 ├── sweep_config.json
 └── grammar_0/
@@ -140,6 +229,20 @@ Each arm stores its resolved config, ordinary metrics, best/final checkpoints,
 and exact-step snapshots. `--resume` skips completed arms only when the saved
 sweep configuration exactly matches the requested sweep.
 
+## Run the weight-sensitivity screens
+
+Run the same full target-depth grid at the two larger fixed auxiliary weights:
+
+```bash
+PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
+  --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_0_3.json \
+  --output-dir runs/02_fixed_latent_targets/screen_lambda_0_3
+
+PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
+  --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_1_0.json \
+  --output-dir runs/02_fixed_latent_targets/screen_lambda_1_0
+```
+
 ## Diagnose the developmental trajectories
 
 Use exactly the Stage-01 observer pipeline. The final Stage-01 confirmation
@@ -147,19 +250,21 @@ used 1,024 validation examples and 300 probe steps, so the first Stage-02
 comparison should use the same diagnostic settings:
 
 ```bash
-for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
-  PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-    --run-dir runs/02_fixed_latent_targets/screen/grammar_0/model_0/$arm \
-    --output-dir runs/02_fixed_latent_targets/screen/grammar_0/model_0/$arm/trajectory \
-    --device mps \
-    --num-sequences 1024 \
-    --probe-steps 300 \
-    --controls
+for screen in screen_lambda_0_1 screen_lambda_0_3 screen_lambda_1_0; do
+  for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
+    PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
+      --run-dir runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm \
+      --output-dir runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/trajectory \
+      --device mps \
+      --num-sequences 1024 \
+      --probe-steps 300 \
+      --controls
 
-  python plot_trajectory.py \
-    --trajectory runs/02_fixed_latent_targets/screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
-    --metrics runs/02_fixed_latent_targets/screen/grammar_0/model_0/$arm/metrics.json \
-    --output runs/02_fixed_latent_targets/screen/grammar_0/model_0/$arm/trajectory/trajectory.png
+    python plot_trajectory.py \
+      --trajectory runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
+      --metrics runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/metrics.json \
+      --output runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/trajectory/trajectory.png
+  done
 done
 ```
 
@@ -173,20 +278,12 @@ Stage-01 same-layer rule: balanced probe accessibility plus positive synonym
 invariance over a two-checkpoint window, with the raw variable-vs-synonym
 intervention contrast used as a collapse check.
 
-The first report should reduce the screen to a table of this form:
+The report should reduce the screens to a table of this form, with entries for
+each weight/target combination:
 
-| fixed target | H2 onset `tau_2` | H3 onset `tau_3` | best validation CE |
-|---|---:|---:|---:|
-| NTP | | | |
-| embedding (`j=0`) | | | |
-| `j=1` | | | |
-| `j=2` | | | |
-| `j=3` | | | |
-| `j=4` | | | |
-| `j=5` | | | |
-| `j=6` | | | |
-| `j=7` | | | |
-| `j=8` | | | |
+| lambda | fixed target | H2 onset `tau_2` | H3 onset `tau_3` | best validation CE | CE cost vs NTP |
+|---:|---|---:|---:|---:|---:|
+| `0.1`, `0.3`, or `1.0` | NTP or `j=0,...,8` | | | | |
 
 The scientific question is the **ranking across target depths**, not merely
 whether an auxiliary loss can lower its own training objective.

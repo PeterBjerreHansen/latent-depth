@@ -5,7 +5,7 @@
 
 The runnable protocol is defined in [README.md](README.md), and the initial
 screen configuration is
-[`configs/target_depth_screen.json`](configs/target_depth_screen.json).
+[`configs/target_depth_screen_lambda_0_1.json`](configs/target_depth_screen_lambda_0_1.json).
 
 ## Screen summary
 
