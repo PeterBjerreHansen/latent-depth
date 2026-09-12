@@ -32,12 +32,14 @@ when the same layer remains at or above the threshold at the next checkpoint.
 The earliest observed layer gives the level's `tau_accessibility`; every
 layerwise event is retained.
 
-The analysis also reports independent balanced-probe milestones at `0.50`,
-`0.75`, and `0.90`, plus synonym-clustering, intervention distances, and
-`Q`. These are supporting diagnostics. Clustering and `Q` are not additional
-acquisition hurdles, and values from different observer layers are not merged
-into one event. If no same-layer pair is observed, report “not confirmed by
-step T”; do not infer a numeric onset or difference from that censoring.
+The analysis also reports balanced-probe milestones at `0.50`, `0.75`, and
+`0.90`, using the same two-checkpoint persistence rule, plus
+synonym-clustering, intervention distances, and `Q`. These thresholds show
+whether the timing pattern depends on the chosen accuracy level. Clustering
+and `Q` are not additional acquisition hurdles, and values from different
+observer layers are not merged into one event. If no same-layer pair is
+observed, report “not confirmed by step T”; do not infer a numeric onset or
+difference from that censoring.
 
 ## Pre-run expectation and decision gate
 
@@ -100,7 +102,7 @@ The report must include:
 
 - held-out mean and per-position NTP NLL;
 - balanced accessibility curves and fixed-threshold onset/confirmation;
-- the independent 50/75/90% probe milestones;
+- the persistent 50/75/90% probe milestones;
 - layerwise clustering, intervention distances, and `Q`;
 - grammar/model seeds, checkpoint schedule, exposure accounting, and runtime;
 - a clear **go**, **no-go**, or **rerun baseline** decision.

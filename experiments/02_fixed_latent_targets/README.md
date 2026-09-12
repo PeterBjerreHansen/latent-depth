@@ -56,7 +56,8 @@ balanced probe accuracy with one preselected primary threshold, currently
 threshold followed by a second checkpoint at or above it at the same observer
 layer. The earliest observed layer supplies `tau_accessibility`; the analysis
 retains the full layerwise curves and events. The 50%, 75%, and 90% probe
-milestones are also reported to show threshold dependence.
+milestones use the same two-checkpoint persistence rule and are reported to
+show threshold dependence.
 
 Synonym clustering and the latent-replacement contrast `Q` are explanatory
 diagnostics. Shuffled-label probes are optional controls. Neither clustering,
@@ -118,8 +119,15 @@ The comparison contains absolute accessibility times, exact paired differences
 when available, matched-update validation CE, exposure accounting, and the
 targets present in each group. The combined timing figure shows absolute times
 and paired differences; there is no duplicate delta figure. Layerwise curves
-are plotted in observer-layer panels for every available arm, so a censored NTP
-event cannot hide auxiliary movement at another layer.
+are plotted in observer-layer panels for every available arm, so a
+not-confirmed NTP event cannot hide auxiliary movement at another layer.
+
+The controls are optional; when requested, `--controls` adds the trained-backbone
+shuffled-label probe.
+
+The comparison contains absolute accessibility times, exact paired differences
+when available, matched-update validation CE, exposure accounting, and the
+targets present in each group.
 
 ## Interpretation and follow-up
 
