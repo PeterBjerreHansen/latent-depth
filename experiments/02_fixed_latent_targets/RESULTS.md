@@ -12,7 +12,7 @@ targets actually present in each paired group.
 
 | lambda | output |
 |---:|---|
-| 0.3 | `runs/target_depth_l5_lambda_0_3_5000_updates/` |
+| 0.3 | `runs/target_depth_l5_lambda_0_3_10000_updates/` |
 
 Pending summary:
 

@@ -37,7 +37,7 @@ It uses the Stage-01 exposure regime:
 - `v=n=16`, `m=4`, `s=2`, `L=5`;
 - fresh `P=65,536` training pool each epoch and fixed validation/test pools;
 - eight blocks, width 256, batch size 256, AdamW with learning rate `3e-4`;
-- 5,000 optimizer updates, evaluation every 250 updates including step zero;
+- 10,000 optimizer updates, evaluation every 250 updates including step zero;
 - exact diagnostic checkpoints every 500 updates; and
 - NTP plus fixed target depths `j=0,...,8`.
 
@@ -84,7 +84,7 @@ From the repository root:
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
   --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_0_3.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_5000_updates
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates
 ```
 
 Diagnose each arm from its exact-step checkpoints. The controls are optional;
@@ -92,7 +92,7 @@ when requested, `--controls` adds the trained-backbone shuffled-label probe.
 
 ```bash
 for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
-  screen=target_depth_l5_lambda_0_3_5000_updates
+  screen=target_depth_l5_lambda_0_3_10000_updates
   PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
     --run-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm \
     --output-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory \
@@ -106,13 +106,13 @@ and does not create or consume per-arm acquisition summaries:
 
 ```bash
 python summarize_target_depth.py \
-  --screen-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_5000_updates \
+  --screen-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates \
   --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_5000_updates/analysis
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates/analysis
 
 python plot_trajectory.py \
-  --comparison experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_5000_updates/analysis/comparison.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_5000_updates/analysis/plots
+  --comparison experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates/analysis/comparison.json \
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates/analysis/plots
 ```
 
 The comparison contains absolute accessibility times, exact paired differences
