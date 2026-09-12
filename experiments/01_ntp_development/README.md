@@ -1,210 +1,63 @@
 # Stage 01: NTP developmental baseline
 
-This stage asks whether ordinary causal next-token prediction develops a
-layerwise, temporally ordered hierarchy of RHM latents. It must be completed
-before adding the latent auxiliary loss.
-
-This README contains the pre-run expectation and decision gate for the stage.
-The paired evidence is in [RESULTS.md](RESULTS.md). Compare the completed
-rerun with the criteria below before proceeding to any auxiliary objective.
+Stage 01 asks whether ordinary causal next-token prediction develops a
+temporally ordered hierarchy of RHM latents. It is the baseline gate for the
+fixed residual-target experiment in Stage 02.
 
 ## Protocol
 
 - Binary RHM with `v=n=16`, `m=4`, `s=2`, and `L=5`.
 - Ordinary causal NTP only; no latent auxiliary loss.
 - Eight Transformer blocks, eight heads, width 256, batch size 256.
-- The required confirmation rerun uses a per-epoch training pool of
-  `P=65,536` with the full 2 × 2 grammar/model seed factorial in
-  `configs/replication.json`.
-- The confirmation rerun samples a fresh training pool at the start of every
-  epoch from the same grammar; validation and test pools remain fixed.
-- `configs/regime_search.json` is retained for optional fresh artifacts only;
-  the three-point `P` search is not part of the required decision.
+- Per-epoch training pool `P=65,536`, fixed validation/test pools, and the
+  full 2 × 2 grammar/model seed factorial in `configs/replication.json`.
 - Evaluation every 250 optimizer updates, including step zero.
 - Exact checkpoint snapshots every 500 updates through step 5,000.
-- Offline layer-by-level diagnostics for the embedding stream and all eight
-  post-block streams, with shuffled-label and untrained-backbone controls.
+- Offline probes on the embedding stream and all eight post-block streams.
+  Shuffled-label controls are optional and do not define acquisition.
 
-The diagnostics report the first completed constituent at positions
-`t=1, 3, 7, 15` for `H1` through `H4`. Observer layer `k=0` is the embedding
-stream; `k=1,...,8` are post-block residual streams. A full acquisition claim
-must use the same observer layer for accessibility and synonym invariance;
-report the Q collapse diagnostic at that same layer.
-The numeric same-layer A+C rule is committed in
-[`../02_fixed_latent_targets/acquisition_rule.json`](../02_fixed_latent_targets/acquisition_rule.json).
-Calibrate it from the fresh NTP trajectory and controls, freeze it, and then
-apply it unchanged to auxiliary arms.
+The diagnostics inspect the first completed constituent at `H1`--`H4`, at
+positions `t=1, 3, 7, 15`. Observer layer `k=0` is the embedding stream and
+`k=1,...,8` are post-block residual streams. The latent labels are never used
+in the training objective.
+
+## Fixed analysis rule
+
+The primary developmental measurement is balanced probe accuracy at the fixed
+threshold in
+[`../02_fixed_latent_targets/acquisition_rule.json`](../02_fixed_latent_targets/acquisition_rule.json):
+`0.75`. For each observer layer, the first checkpoint at or above the
+threshold is an onset candidate. It is an observed accessibility event only
+when the same layer remains at or above the threshold at the next checkpoint.
+The earliest observed layer gives the level's `tau_accessibility`; every
+layerwise event is retained.
+
+The analysis also reports independent balanced-probe milestones at `0.50`,
+`0.75`, and `0.90`, plus synonym-clustering, intervention distances, and
+`Q`. These are supporting diagnostics. Clustering and `Q` are not additional
+acquisition hurdles, and values from different observer layers are not merged
+into one event. If no same-layer pair is observed, report “not confirmed by
+step T”; do not infer a numeric onset or difference from that censoring.
 
 ## Pre-run expectation and decision gate
 
-The ordinary causal next-token prediction (NTP) baseline has one specific job:
-show that the model develops a temporally ordered hierarchy of internal
-abstractions, with enough separation between transitions that changing the
-auxiliary target could plausibly matter.
+The baseline should show useful held-out NTP improvement, a reproducible
+ordering in which H2 becomes accessible before H3, and enough remaining NTP
+progress for a target-depth intervention to matter. A clean one-block-per-level
+mapping is not required; level timing is the primary question and layer timing
+is descriptive.
 
-This section is the pre-run specification for the eventual Stage 01 report.
-The report must use the same quantities and acquisition rule, and must state
-`go`, `no-go`, or `rerun baseline` against these criteria. New criteria must be
-agreed before a rerun, not introduced after inspecting its results.
+Supporting evidence includes positive synonym-invariance scores and a positive
+latent-replacement contrast `Q`. A probe rise without a corresponding
+supporting representation signal is still a useful accessibility result, but
+should not be described as proof of a complete abstraction.
 
-### Expected training-age pattern
-
-The exact step numbers are not predictions. The important expectation is a
-reproducible ordering with meaningful time between transitions while held-out
-NTP is still improving.
-
-| training age | NTP | `H1` | `H2` | `H3` | `H4` |
-|---|---|---|---|---|---|
-| step 0 | baseline | baseline | baseline | baseline | baseline |
-| early | improving | emerging | weak | weak | weak |
-| early/mid | improving | strong | emerging | weak | weak |
-| mid | improving | strong | strong | emerging | weak |
-| later | improving | strong | strong | stronger | perhaps emerging |
-
-The ideal checkpoint for a later auxiliary experiment has `H1` established,
-`H2` beginning to form, `H3` largely absent, and substantial remaining NTP
-headroom. Transition times such as `tau_1 ~= 1000`, `tau_2 ~= 3000`, and
-`tau_3 ~= 7000` are useful only as an order-of-magnitude example; the numbers
-themselves do not matter.
-
-Layer order is weaker than level order. We do not require block 1 to encode
-`H1`, block 2 to encode `H2`, and so on. The useful object is the evolution of
-the layer-by-level heatmaps.
-
-### What the run must show
-
-#### Held-out NTP learning
-
-Validation NLL must fall substantially from step zero and remain better than
-the relevant uniform and grammar-aware controls. Per-position NLL should show
-that learning is not confined to trivial local positions. Training loss alone
-is insufficient.
-
-#### Latent accessibility above controls
-
-For each `H_r`, balanced accuracy of a frozen linear probe should rise clearly
-above its step-zero value, the shuffled-label probe, and the balanced-majority
-baseline. The balanced-majority baseline is `1/K`, where `K` is the number of
-classes represented in the held-out probe-evaluation split. Ordinary majority
-frequency remains the reference only for ordinary accuracy. The theoretical
-uniform chance value is useful context, but step-zero accuracy need not equal it
-because token identity and position can make information linearly accessible
-before training.
-
-#### Synonym invariance at the same transition
-
-When a different production rule realizes the same latent, the representation
-should become more similar than when the corresponding latent changes. In the
-repository's notation,
-
-\[
-C_{j,r}=1-\frac{d_{\mathrm{syn}}}{d_{\mathrm{non}}}
-\]
-
-should move from its initial baseline toward positive values at approximately
-the same training ages at which `H_r` becomes accessible. A probe that rises
-while clustering remains flat near zero is evidence for decodability, not yet
-for the abstraction of interest. For a full acquisition claim, accessibility
-and invariance must both hold at the same residual-stream layer `k`; values
-from different layers may not be combined. Same-layer A+C is the primary
-developmental evidence. H1 is useful supporting context, but its probe signal
-is confounded by local token identity and is not the core clock.
-
-#### Sensitivity to changing the latent
-
-Synonym invariance must not be explained by representation collapse. Changing
-`H_r` should still produce a substantial representation change, measured by
-the matched latent-replacement sensitivity control. Report the raw same-layer
-values `d_syn`, `d_variable`, and `d_non`, the legacy ratio
-`S=d_variable/d_non`, and the normalized contrast
-
-\[
-Q_{j,r}=\frac{d_{\mathrm{variable}}-d_{\mathrm{syn}}}
-              {d_{\mathrm{non}}+\epsilon}.
-\]
-
-The old `S >= 1.005` threshold is retained as a secondary continuity check,
-not as an independent acquisition hurdle. Positive `Q` or
-`d_variable > d_syn` at the same layer supports the interpretation that latent
-replacement matters more than a synonymous surface change. A borderline or
-noisy contrast should be reported as such rather than converted into a new
-hard threshold after seeing the results.
-
-#### Ordered, replicated transitions
-
-We do not require a mathematically perfect ordering for every seed. We expect
-something qualitatively like
-
-\[
-\tau_1 < \tau_2 < \tau_3
-\]
-
-on the canonical run, with the `H1 -> H2` ordering surviving at least one
-additional model seed and one additional grammar realization. `H3` emerging
-and `H4` remaining late are supporting evidence; convincingly acquiring `H1`
-and `H2` is the minimum useful result.
-
-### Proceed to the latent auxiliary loss only if
-
-- held-out NTP improves strongly and still has headroom after `H1` is learned;
-- `H2` is convincingly acquired and the later `H3` transition is visible, with
-  the H2-to-H3 ordering replicated across grammar/model seeds;
-- acquisition times are visibly separated rather than all appearing at the
-  first evaluation;
-- each claimed transition is supported primarily by same-layer balanced
-  accessibility plus positive synonym invariance; the raw sensitivity contrast
-  shows no persistent evidence of collapse;
-- the qualitative `H1 -> H2` ordering is not peculiar to one grammar/model
-  seed pair; and
-- there is a useful transition checkpoint where H2 is established, H3 is
-  emerging, and NTP is still improving. H1 invariance is supporting context.
-
-If these conditions hold, freeze the baseline protocol and implement the first
-auxiliary comparison as separate from-scratch runs:
-
-\[
-\mathcal L=\mathcal L_{\mathrm{NTP}}+
-\lambda\mathcal L_{\mathrm{next\ latent}}^{(j)}.
-\]
-
-The first question is which fixed target minimizes time to acquire `H1`, `H2`,
-and `H3`; the complete target-depth grid is defined in
-[Stage 02](../02_fixed_latent_targets/README.md). Adaptive target switching
-comes only after that fixed-target comparison produces a meaningful
-developmental clock.
-
-### Rerun the baseline instead if
-
-- probes become strong but synonym clustering stays near its initial baseline;
-- all hierarchy levels rise together at the first evaluation;
-- only `H1` develops within the available budget;
-- the ordering changes wildly across grammar seeds; or
-- NTP saturates before there is a window in which target choices could plausibly
-  have different value.
-
-These outcomes are informative baseline failures, not reasons to add the
-auxiliary objective anyway. Adjust the dataset size, training budget,
-evaluation cadence, or model capacity, then rerun the NTP baseline against this
-same expectation. Persistent failure of the raw sensitivity contrast should be
-reported as a qualification of the abstraction claim, not hidden by selecting
-the largest legacy `S` value from another layer.
-
-### Reporting requirements
-
-The Stage 01 report must include, on the same training-age axis:
-
-- held-out mean and per-position NTP NLL;
-- layer-by-level balanced probe accuracy with shuffled-label,
-  balanced-majority, ordinary-majority, and untrained-backbone controls;
-- synonym-clustering scores and synonym/non-synonym distances;
-- latent-replacement sensitivity;
-- transition estimates or clearly marked qualitative transition windows; and
-- the canonical configuration, grammar/model seeds, checkpoints, total samples
-  seen, and device/runtime details.
-
-The report must explicitly state **go**, **no-go**, or **rerun baseline** against
-this section. Only a **go** decision authorizes the latent auxiliary-loss
-implementation.
+Proceed to Stage 02 when the H2-before-H3 ordering is visible across the
+canonical runs, NTP has not saturated before the transition window, and the
+intervention diagnostics do not show persistent collapse. Record **go**,
+**no-go**, or **rerun baseline** in [RESULTS.md](RESULTS.md). These are
+qualitative pre-registered criteria; do not introduce a new hard criterion
+after looking at the results.
 
 ## Required rerun
 
@@ -216,66 +69,42 @@ PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_data_size.py \
   --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates
 ```
 
-After the sweep finishes, diagnose every exact-step checkpoint for all four
-confirmation runs:
+Diagnose every exact-step checkpoint for each confirmation run:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
   --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536 \
   --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory \
   --controls
-
-PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536 \
-  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/trajectory \
-  --controls
-
-PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536 \
-  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/trajectory \
-  --controls
-
-PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536 \
-  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/trajectory \
-  --controls
-
-python plot_trajectory.py \
-  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory/trajectory.json \
-  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/metrics.json \
-  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory/trajectory.png
-
-python plot_trajectory.py \
-  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/trajectory/trajectory.json \
-  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/metrics.json \
-  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/trajectory/trajectory.png
-
-python plot_trajectory.py \
-  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/trajectory/trajectory.json \
-  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/metrics.json \
-  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/trajectory/trajectory.png
-
-python plot_trajectory.py \
-  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/trajectory/trajectory.json \
-  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/metrics.json \
-  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/trajectory/trajectory.png
 ```
 
-The trajectory plot includes validation NLL by prediction position and the
-layer-by-level accessibility, synonym-invariance, and normalized intervention
-contrast (`Q`) heatmaps.
-For machine-readable transition times, summarize each trajectory with
-`summarize_trajectory.py` before filling this report; visual heatmaps are not an
-acquisition-time definition.
+Repeat the command for the other three `grammar_*/model_*` directories. The
+`--controls` flag adds the shuffled-label probe only. One-run visualizations
+can be made with:
 
-## Decision gate
+```bash
+python plot_trajectory.py \
+  --trajectory RUN/trajectory/trajectory.json \
+  --metrics RUN/metrics.json \
+  --output RUN/trajectory/trajectory.png
+```
 
-Do not implement the latent auxiliary loss after a promising screen alone.
-First compare the full rerun with the expectation in this README and record
-`go`, `no-go`, or `rerun baseline` in [RESULTS.md](RESULTS.md). Only an explicit
-`go` authorizes the next implementation stage.
+Use `summarize_target_depth.py` for paired Stage-02 screens. For Stage 01,
+inspect the raw trajectories and apply the committed rule through the same
+internal analysis helper; there is no per-run acquisition artifact to keep in
+sync with the raw data.
 
-The completed confirmation rerun must be recorded in [RESULTS.md](RESULTS.md)
-before treating the baseline as evidence. The authorized next stage, if the
-rerun meets this gate, is the fixed auxiliary target-depth screen in
-[Stage 02](../02_fixed_latent_targets/README.md).
+## Reporting requirements
+
+The report must include:
+
+- held-out mean and per-position NTP NLL;
+- balanced accessibility curves and fixed-threshold onset/confirmation;
+- the independent 50/75/90% probe milestones;
+- layerwise clustering, intervention distances, and `Q`;
+- grammar/model seeds, checkpoint schedule, exposure accounting, and runtime;
+- a clear **go**, **no-go**, or **rerun baseline** decision.
+
+The results report should distinguish observed events from levels not confirmed
+by the final checkpoint. H1 is useful context because local token information
+can make it accessible early; H2 and H3 provide the main developmental gate.

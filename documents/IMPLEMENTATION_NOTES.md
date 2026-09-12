@@ -87,8 +87,7 @@ Synonym clustering forces a different production rule for an on-grammar
 realization of the same latent and compares that change with an in-distribution
 example whose corresponding latent is different.
 Variable sensitivity performs the complementary latent-replacement
-intervention. Offline diagnostics can additionally fit shuffled-label probes
-and probes on an untrained backbone.
+intervention. Offline diagnostics can additionally fit shuffled-label probes.
 
 Abstraction level `r` is counted upward from the leaves. The implementation
 uses `trees[L-r]` and the first constituent completion position `s**r - 1`.
@@ -99,15 +98,16 @@ causal adaptation should not be described as reproducing a specific
 non-causal data2vec experiment.
 
 Diagnostics preserve the model's parameters, train/eval mode, and global RNG
-states. Probe reports retain the theoretical uniform chance level,
+states. Probe reports retain the theoretical uniform-random level,
 ordinary-majority accuracy, and the balanced-majority baseline computed from
 the classes actually represented in the held-out probe-evaluation split.
 `diagnose.py`
 regenerates the selected validation/test split from the checkpoint's stored
 grammar and provides an offline parity path. `diagnose_trajectory.py` applies
-that observer to every exact-step snapshot. The two fixed-analysis scripts
-then apply the frozen same-layer acquisition rule, record emergence and
-confirmation with explicit censoring, and aggregate paired target-depth arms.
+that observer to every exact-step snapshot. The target-depth analysis entry
+point loads those raw trajectories, applies a fixed balanced-accessibility
+threshold with same-layer two-checkpoint persistence, records onset and
+confirmation or an explicit not-confirmed horizon, and aggregates paired arms.
 `plot_trajectory.py` plots validation NLL by prediction position plus fixed-scale
 accessibility, synonym invariance, and the centered latent-replacement contrast
 `Q` against optimizer updates.
@@ -151,8 +151,8 @@ for the existing offline diagnostics.
 
 `sweep_target_depth.py` runs the NTP null arm and fixed target depths with the
 same grammar/model seeds and data ordering. The Stage-02 report must compare
-H2/H3 same-layer acquisition times, layerwise probe decodability, the existing
-shuffled-label and untrained-backbone controls, NTP validation cost, and
+H2/H3 accessibility times, layerwise probe decodability, optional
+shuffled-label controls, NTP validation cost, and
 auxiliary/total loss curves. Residual targets also carry token and position
 information, especially at `j=0`; explicit surface controls are a follow-up if
 the first screen makes that confound important. Do not add adaptive switching

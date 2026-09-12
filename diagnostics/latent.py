@@ -148,14 +148,14 @@ def _fit_linear_probes(
         ).view(R, J, eval_size).mean(dim=-1).cpu()
         predictions_cpu = predictions.cpu()
         labels_cpu = y_eval_base.cpu()
-        majority_accuracy = torch.empty(R, dtype=torch.float64)
+        ordinary_majority_accuracy = torch.empty(R, dtype=torch.float64)
         balanced_majority_accuracy = torch.empty(R, dtype=torch.float64)
         represented_classes = torch.empty(R, dtype=torch.int64)
         balanced_accuracy = torch.empty(R, J, dtype=torch.float64)
         for r in range(R):
             class_counts = torch.bincount(labels_cpu[r], minlength=vocab_size).to(torch.float64)
             present = class_counts > 0
-            majority_accuracy[r] = class_counts.max() / eval_size
+            ordinary_majority_accuracy[r] = class_counts.max() / eval_size
             represented_classes[r] = present.sum()
             balanced_majority_accuracy[r] = 1.0 / represented_classes[r]
             for j in range(J):
@@ -169,7 +169,7 @@ def _fit_linear_probes(
     return (
         accuracy,
         ce,
-        majority_accuracy,
+        ordinary_majority_accuracy,
         balanced_majority_accuracy,
         represented_classes,
         balanced_accuracy,
@@ -222,7 +222,7 @@ def run_probe_control(
         (
             accuracy,
             ce,
-            majority_accuracy,
+            ordinary_majority_accuracy,
             balanced_majority_accuracy,
             represented_classes,
             balanced_accuracy,
@@ -241,13 +241,8 @@ def run_probe_control(
         return {
             "shuffle_labels": shuffle_labels,
             "uniform_random_accuracy": 1.0 / cfg.rhm.v,
-            "chance_accuracy": 1.0 / cfg.rhm.v,
             "ordinary_majority_accuracy_by_level": {
-                str(level): float(majority_accuracy[r])
-                for r, level in enumerate(levels)
-            },
-            "majority_accuracy_by_level": {
-                str(level): float(majority_accuracy[r])
+                str(level): float(ordinary_majority_accuracy[r])
                 for r, level in enumerate(levels)
             },
             "represented_classes_by_level": {
@@ -443,7 +438,7 @@ def run_latent_diagnostics(
             (
                 accuracy,
                 ce,
-                majority_accuracy,
+                ordinary_majority_accuracy,
                 balanced_majority_accuracy,
                 represented_classes,
                 balanced_accuracy,
@@ -461,13 +456,8 @@ def run_latent_diagnostics(
             )
             probe: dict[str, Any] = {
                 "uniform_random_accuracy": 1.0 / cfg.rhm.v,
-                "chance_accuracy": 1.0 / cfg.rhm.v,
                 "ordinary_majority_accuracy_by_level": {
-                    str(level): float(majority_accuracy[r])
-                    for r, level in enumerate(levels)
-                },
-                "majority_accuracy_by_level": {
-                    str(level): float(majority_accuracy[r])
+                    str(level): float(ordinary_majority_accuracy[r])
                     for r, level in enumerate(levels)
                 },
                 "represented_classes_by_level": {
@@ -491,8 +481,7 @@ def run_latent_diagnostics(
                     "balanced_accuracy_by_layer": [
                         float(x) for x in balanced_accuracy[r_index].tolist()
                     ],
-                    "ordinary_majority_accuracy": float(majority_accuracy[r_index]),
-                    "majority_accuracy": float(majority_accuracy[r_index]),
+                    "ordinary_majority_accuracy": float(ordinary_majority_accuracy[r_index]),
                     "represented_classes": int(represented_classes[r_index]),
                     "balanced_majority_accuracy": float(
                         balanced_majority_accuracy[r_index]

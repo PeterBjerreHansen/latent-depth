@@ -26,5 +26,5 @@ fixed RHM sequences, a causal next-token objective, and a nanoGPT-style
 Transformer. The optional latent probes, synonym-clustering score, and
 latent-replacement sensitivity controls are project-specific causal adaptations
 inspired by the cited representation analysis, not claims of architectural or
-experimental reproduction. The shuffled-label and untrained-backbone controls
-are implementation checks rather than paper-reproduction claims.
+experimental reproduction. The shuffled-label control is an implementation
+check rather than a paper-reproduction claim.

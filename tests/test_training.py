@@ -184,17 +184,17 @@ def test_training_metrics_report_last_position_and_exposure_baselines(tmp_path: 
     assert metrics["val_last_position_nll"] == metrics["val_nll_by_position"][-1]
     assert metrics["test_last_position_nll"] == metrics["test_nll_by_position"][-1]
     assert metrics["uniform_baseline_nll"] == pytest.approx(torch.log(torch.tensor(float(cfg.rhm.v))).item())
-    assert metrics["total_samples_seen"] == cfg.train.max_updates * cfg.train.batch_size
-    assert metrics["total_tokens_seen"] == (
-        metrics["total_samples_seen"] * (cfg.rhm.s**cfg.rhm.L - 1)
+    assert metrics["total_sequence_draws"] == cfg.train.max_updates * cfg.train.batch_size
+    assert metrics["total_predicted_tokens"] == (
+        metrics["total_sequence_draws"] * (cfg.rhm.s**cfg.rhm.L - 1)
     )
     assert metrics["per_epoch_train_pool"] == cfg.data.train_size
     assert metrics["total_optimizer_updates"] == cfg.train.max_updates
-    assert metrics["total_sequence_draws"] == metrics["total_samples_seen"]
-    assert metrics["total_predicted_tokens"] == metrics["total_tokens_seen"]
     assert metrics["resample_train_each_epoch"] is False
-    assert metrics["history"][-1]["samples_seen"] == metrics["total_samples_seen"]
-    assert metrics["history"][-1]["tokens_seen"] == metrics["total_tokens_seen"]
+    assert metrics["history"][-1]["samples_seen"] == metrics["total_sequence_draws"]
+    assert metrics["history"][-1]["tokens_seen"] == metrics["total_predicted_tokens"]
+    assert "total_samples_seen" not in metrics
+    assert "total_tokens_seen" not in metrics
     assert metrics["history"][-1]["val_last_position_nll"] == metrics["last_val_last_position_nll"]
 
     best_model, _, _ = load_model_from_checkpoint(tmp_path / "best.pt")

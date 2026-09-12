@@ -6,12 +6,12 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-from summarize_trajectory import load_acquisition_rule
+from summarize_trajectory import summarize_trajectory_data
 
 
 def _load(path: Path) -> dict[str, Any]:
@@ -227,48 +227,35 @@ def _plot_acquisition_bars(group: dict[str, Any], output_dir: Path) -> None:
     rows = group["primary"]
     labels = [row["target"] for row in rows]
     figure, axes = plt.subplots(2, 1, figsize=(11.0, 8.0), sharex=True)
-    for axis, value_name, title in (
-        (axes[0], "tau_2", "Absolute acquisition time"),
-        (axes[1], "delta_tau_2", "Acquisition-time difference versus NTP"),
-    ):
-        values = [row.get(value_name) for row in rows]
-        plotted = [np.nan if value is None else float(value) for value in values]
-        axis.plot(labels, plotted, marker="o", label="H2")
-        if value_name == "tau_2":
-            other = [row.get("tau_3") for row in rows]
-            axis.plot(
-                labels,
-                [np.nan if value is None else float(value) for value in other],
-                marker="o",
-                label="H3",
-            )
-        axis.axhline(0.0, color="black", linewidth=0.7, alpha=0.5)
-        axis.set_ylabel("updates")
-        axis.set_title(title)
-        axis.legend(fontsize=8)
-        axis.grid(alpha=0.25)
-    axes[1].set_xlabel("target arm")
-    _save_figure(figure, output_dir / "acquisition_times.png")
-
-    # Keep the delta plot as a separate artifact because absolute time and a
-    # paired difference answer different scientific questions.
-    figure, axis = plt.subplots(figsize=(11.0, 4.5))
-    for level, color in ((2, "tab:blue"), (3, "tab:orange")):
-        values = [row.get(f"delta_tau_{level}") for row in rows]
-        axis.plot(
+    levels = group.get("primary_levels", [2, 3])
+    for level in levels:
+        values = [row.get(f"tau_{level}") for row in rows]
+        axes[0].plot(
             labels,
             [np.nan if value is None else float(value) for value in values],
             marker="o",
-            color=color,
             label=f"H{level}",
         )
-    axis.axhline(0.0, color="black", linewidth=0.8)
-    axis.set_xlabel("target arm")
-    axis.set_ylabel("updates versus NTP")
-    axis.set_title("Paired acquisition-time differences")
-    axis.legend(fontsize=8)
-    axis.grid(alpha=0.25)
-    _save_figure(figure, output_dir / "delta_tau.png")
+    axes[0].set_ylabel("updates")
+    axes[0].set_title("Absolute accessibility time")
+    axes[0].legend(fontsize=8)
+    axes[0].grid(alpha=0.25)
+
+    for level in levels:
+        values = [row.get(f"delta_tau_{level}") for row in rows]
+        axes[1].plot(
+            labels,
+            [np.nan if value is None else float(value) for value in values],
+            marker="o",
+            label=f"H{level}",
+        )
+    axes[1].axhline(0.0, color="black", linewidth=0.7, alpha=0.5)
+    axes[1].set_ylabel("updates versus NTP")
+    axes[1].set_title("Paired accessibility-time differences (observed events only)")
+    axes[1].legend(fontsize=8)
+    axes[1].grid(alpha=0.25)
+    axes[1].set_xlabel("target arm")
+    _save_figure(figure, output_dir / "acquisition_times.png")
 
 
 def _plot_validation_ce(group: dict[str, Any], output_dir: Path) -> None:
@@ -300,60 +287,104 @@ def _plot_level_curves(
     limits: tuple[float, float] | None = None,
 ) -> None:
     arms = group["arms"]
-    ntp = next(arm for arm in arms if arm["target"] == "ntp")
-    level_summary = ntp["summary"]["levels"].get(str(level))
     file_metric = {
         "balanced_accuracy": "accessibility",
         "clustering": "clustering",
         "q": "q",
     }.get(metric, metric)
-    figure, axis = plt.subplots(figsize=(11.0, 5.0))
-    if level_summary is None or level_summary["emergence"]["status"] != "observed":
-        axis.text(
-            0.5,
-            0.5,
-            f"NTP has no observed H{level} onset layer",
-            ha="center",
-            va="center",
+    level_key = str(level)
+    layers = sorted(
+        {
+            str(layer)
+            for arm in arms
+            for layer in arm["summary"]["levels"].get(level_key, {}).get("layerwise", {})
+        },
+        key=int,
+    )
+    layers = [
+        layer
+        for layer in layers
+        if any(
+            isinstance(
+                arm["summary"]["levels"].get(level_key, {})
+                .get("layerwise", {})
+                .get(layer),
+                Mapping,
+            )
+            and arm["summary"]["levels"][level_key]["layerwise"][layer].get(metric)
+            is not None
+            for arm in arms
         )
+    ]
+    if not layers:
+        figure, axis = plt.subplots(figsize=(11.0, 5.0))
+        axis.text(0.5, 0.5, f"No H{level} observer-layer curves", ha="center", va="center")
         axis.set_axis_off()
         _save_figure(figure, output_dir / f"h{level}_{file_metric}.png")
         return
-    layer = int(level_summary["emergence"]["observer_layer"])
-    curves: list[np.ndarray] = []
-    labels: list[str] = []
+
     steps = np.asarray(group["checkpoint_steps"], dtype=int)
-    for arm in arms:
-        layer_data = arm["summary"]["levels"][str(level)]["layerwise"][str(layer)]
-        curve = np.asarray(layer_data[metric], dtype=float)
-        if curve.shape != steps.shape:
-            raise ValueError(
-                f"comparison arm {arm['target']} has an invalid H{level} {metric} curve"
-            )
-        curves.append(curve)
-        labels.append(arm["target"])
-    matrix = np.stack(curves)
     if limits is None:
         if metric == "balanced_accuracy":
             limits = (0.0, 1.0)
         elif metric == "q":
-            magnitude = max(float(np.nanmax(np.abs(matrix))), 1e-8)
+            curves = [
+                np.asarray(arm["summary"]["levels"][level_key]["layerwise"][layer][metric], dtype=float)
+                for arm in arms
+                if level_key in arm["summary"]["levels"]
+                for layer in layers
+                if layer in arm["summary"]["levels"][level_key]["layerwise"]
+            ]
+            magnitude = max(float(np.nanmax(np.abs(np.stack(curves)))), 1e-8)
             limits = (-magnitude, magnitude)
         else:
+            curves = [
+                np.asarray(arm["summary"]["levels"][level_key]["layerwise"][layer][metric], dtype=float)
+                for arm in arms
+                if level_key in arm["summary"]["levels"]
+                for layer in layers
+                if layer in arm["summary"]["levels"][level_key]["layerwise"]
+            ]
+            matrix = np.stack(curves)
             low, high = float(np.nanmin(matrix)), float(np.nanmax(matrix))
             if low == high:
                 padding = max(abs(low) * 0.05, 1e-6)
                 low -= padding
                 high += padding
             limits = (low, high)
-    axis.set_ylim(*limits)
-    for curve, label in zip(curves, labels):
-        axis.plot(steps, curve, marker="o", markersize=3, label=label)
-    axis.set_xlabel("optimizer step")
-    axis.set_ylabel(metric)
-    axis.set_title(f"H{level}: {title} at NTP onset layer {layer}")
-    axis.legend(fontsize=8, ncol=2)
-    axis.grid(alpha=0.25)
+    columns = min(3, len(layers))
+    rows = int(np.ceil(len(layers) / columns))
+    figure, axes = plt.subplots(
+        rows, columns, figsize=(5.5 * columns, 4.0 * rows), squeeze=False, sharex=True, sharey=True
+    )
+    for index, layer in enumerate(layers):
+        axis = axes.flat[index]
+        axis.set_ylim(*limits)
+        plotted = False
+        for arm in arms:
+            level_data = arm["summary"]["levels"].get(level_key)
+            if not isinstance(level_data, Mapping):
+                continue
+            layer_data = level_data.get("layerwise", {}).get(layer)
+            if not isinstance(layer_data, Mapping) or layer_data.get(metric) is None:
+                continue
+            curve = np.asarray(layer_data[metric], dtype=float)
+            if curve.shape != steps.shape:
+                raise ValueError(
+                    f"comparison arm {arm['target']} has an invalid H{level} {metric} curve"
+                )
+            axis.plot(steps, curve, marker="o", markersize=3, label=arm["target"])
+            plotted = True
+        axis.set_title(f"observer layer k={layer}")
+        axis.set_ylabel(metric)
+        axis.grid(alpha=0.25)
+        if plotted:
+            axis.legend(fontsize=8, ncol=2)
+    for axis in axes[-1, :]:
+        axis.set_xlabel("optimizer step")
+    for axis in axes.flat[len(layers) :]:
+        axis.set_axis_off()
+    figure.suptitle(f"H{level}: {title} by observer layer")
     _save_figure(figure, output_dir / f"h{level}_{file_metric}.png")
 
 
@@ -383,8 +414,8 @@ def _plot_layerwise_onsets(group: dict[str, Any], output_dir: Path) -> None:
         axis.set_yticklabels(labels)
         axis.set_xlabel("observer layer")
         axis.set_ylabel("target arm")
-        axis.set_title(f"H{level} layerwise onset (censoring shown at horizon)")
-        axis.figure.colorbar(image, ax=axis, pad=0.01, label="onset / censoring step")
+        axis.set_title(f"H{level} layerwise accessibility onset")
+        axis.figure.colorbar(image, ax=axis, pad=0.01, label="onset / not-confirmed horizon")
         _save_figure(figure, onset_dir / f"h{level}.png")
 
 
@@ -397,15 +428,9 @@ def _shared_curve_limits(
             level_summary = arm["summary"]["levels"].get(str(level))
             if level_summary is None:
                 continue
-            ntp_level = next(
-                candidate["summary"]["levels"].get(str(level))
-                for candidate in group["arms"]
-                if candidate["target"] == "ntp"
-            )
-            if ntp_level is None or ntp_level["emergence"]["status"] != "observed":
-                continue
-            layer = str(ntp_level["emergence"]["observer_layer"])
-            curves.append(np.asarray(level_summary["layerwise"][layer][metric], dtype=float))
+            for layer_data in level_summary.get("layerwise", {}).values():
+                if layer_data.get(metric) is not None:
+                    curves.append(np.asarray(layer_data[metric], dtype=float))
     if not curves:
         return None
     matrix = np.stack(curves)
@@ -422,6 +447,26 @@ def _shared_curve_limits(
     return low, high
 
 
+def _ensure_comparison_summaries(comparison: Mapping[str, Any]) -> dict[str, Any]:
+    """Recompute summaries when reading the compact on-disk comparison."""
+    result = json.loads(json.dumps(comparison))
+    rule = result.get("rule")
+    for group in result.get("groups", []):
+        for arm in group.get("arms", []):
+            if isinstance(arm.get("summary"), Mapping):
+                continue
+            if not isinstance(rule, Mapping):
+                raise RuntimeError(
+                    "compact comparison has no accessibility rule for summary reconstruction"
+                )
+            trajectory_path = Path(arm["run_dir"]) / "trajectory" / "trajectory.json"
+            trajectory = _load(trajectory_path)
+            arm["summary"] = summarize_trajectory_data(
+                trajectory, rule, source=trajectory_path
+            )
+    return result
+
+
 def plot_target_depth_comparison(
     comparison: str | Path | Mapping[str, Any], output_dir: str | Path
 ) -> None:
@@ -430,22 +475,30 @@ def plot_target_depth_comparison(
         comparison_data = _load(Path(comparison))
     else:
         comparison_data = dict(comparison)
+    comparison_data = _ensure_comparison_summaries(comparison_data)
     groups = comparison_data.get("groups", [])
     if not groups:
         raise RuntimeError("comparison contains no paired groups")
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
     multiple = len(groups) > 1
+    levels = sorted(
+        {
+            int(level)
+            for group in groups
+            for level in group.get("primary_levels", comparison_data.get("primary_levels", []))
+        }
+    )
     shared_limits = {
         (level, metric): _shared_curve_limits(groups, level, metric)
-        for level in (2, 3)
+        for level in levels
         for metric in ("balanced_accuracy", "clustering", "q")
     }
     for group in groups:
         group_output = _group_directory(output, group, multiple)
         _plot_acquisition_bars(group, group_output)
         _plot_validation_ce(group, group_output)
-        for level in (2, 3):
+        for level in group.get("primary_levels", levels):
             _plot_level_curves(
                 group,
                 group_output,
@@ -481,10 +534,6 @@ def _main_parser() -> argparse.ArgumentParser:
     parser.add_argument("--metrics", help="metrics.json from the same training run")
     parser.add_argument("--output", help="one-run PNG output path")
     parser.add_argument("--output-dir", help="directory for sweep comparison PNGs")
-    parser.add_argument(
-        "--rule",
-        help="acquisition_rule.json (used for the Q numerical stabilizer in one-run plots)",
-    )
     return parser
 
 
@@ -494,8 +543,7 @@ def main() -> None:
     if args.trajectory is not None:
         if args.metrics is None or args.output is None:
             parser.error("--trajectory requires --metrics and --output")
-        q_epsilon = 1e-8 if args.rule is None else load_acquisition_rule(args.rule)["epsilon"]
-        plot_trajectory(args.trajectory, args.metrics, args.output, q_epsilon=q_epsilon)
+        plot_trajectory(args.trajectory, args.metrics, args.output)
     else:
         if args.output_dir is None:
             parser.error("--comparison requires --output-dir")

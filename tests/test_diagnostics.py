@@ -212,14 +212,15 @@ def test_full_diagnostics_preserve_backbone_rng_and_mode():
     assert result["positions"] == [1, 3]
     for level in ("1", "2"):
         assert len(result["linear_probe"]["by_level"][level]["accuracy_by_layer"]) == 3
-        assert "majority_accuracy" in result["linear_probe"]["by_level"][level]
+        assert "ordinary_majority_accuracy" in result["linear_probe"]["by_level"][level]
+        assert "majority_accuracy" not in result["linear_probe"]["by_level"][level]
         assert len(result["linear_probe"]["by_level"][level]["balanced_accuracy_by_layer"]) == 3
         assert "balanced_majority_accuracy" in result["linear_probe"]["by_level"][level]
         assert len(result["synonym_clustering"]["by_level"][level]["score_by_layer"]) == 3
         assert len(result["variable_sensitivity"]["by_level"][level]["sensitivity_by_layer"]) == 3
 
 
-def test_probe_controls_preserve_rng_and_report_chance_reference():
+def test_probe_controls_preserve_rng_and_report_uniform_reference():
     cfg = _cfg()
     bundle = _bundle(cfg)
     torch.manual_seed(cfg.model_seed)
@@ -228,9 +229,9 @@ def test_probe_controls_preserve_rng_and_report_chance_reference():
     result = run_probe_control(model, bundle.val, cfg, torch.device("cpu"), shuffle_labels=True)
     torch.testing.assert_close(torch.get_rng_state(), before, atol=0.0, rtol=0.0)
     assert result["shuffle_labels"] is True
-    assert result["chance_accuracy"] == 1.0 / cfg.rhm.v
-    assert set(result["majority_accuracy_by_level"]) == {"1", "2"}
+    assert result["uniform_random_accuracy"] == 1.0 / cfg.rhm.v
     assert set(result["ordinary_majority_accuracy_by_level"]) == {"1", "2"}
+    assert "majority_accuracy_by_level" not in result
     assert set(result["represented_classes_by_level"]) == {"1", "2"}
     assert set(result["balanced_majority_accuracy_by_level"]) == {"1", "2"}
     assert set(result["balanced_accuracy_by_level"]) == {"1", "2"}

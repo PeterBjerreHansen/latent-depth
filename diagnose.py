@@ -8,12 +8,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-import torch
-
 from diagnostics import run_latent_diagnostics, run_probe_control
 from rhm.dataset import RHMSplit
 from rhm.random_hierarchy_model import sample_rules, sample_trees
-from training import build_model, load_model_from_checkpoint, resolve_device
+from training import load_model_from_checkpoint, resolve_device
 
 
 def diagnose_checkpoint(
@@ -68,22 +66,6 @@ def diagnose_checkpoint(
                 model, diagnostic_split, cfg, resolved_device, shuffle_labels=True
             ),
         }
-        rng_state = torch.get_rng_state()
-        mps = getattr(torch, "mps", None)
-        mps_state = None
-        if mps is not None and resolved_device.type == "mps" and hasattr(mps, "get_rng_state"):
-            mps.synchronize()
-            mps_state = mps.get_rng_state().cpu().clone()
-        try:
-            torch.manual_seed(int(cfg.model_seed) + 91_337)
-            untrained = build_model(cfg).to(resolved_device)
-        finally:
-            torch.set_rng_state(rng_state)
-            if mps_state is not None and hasattr(mps, "set_rng_state"):
-                mps.set_rng_state(mps_state)
-        result["probe_controls"]["untrained_backbone_real_labels"] = run_probe_control(
-            untrained, diagnostic_split, cfg, resolved_device, shuffle_labels=False
-        )
     return {
         "checkpoint": str(Path(checkpoint)),
         "checkpoint_global_step": int(checkpoint_data.get("global_step", -1)),
@@ -104,7 +86,7 @@ def main() -> None:
     parser.add_argument("--metric", choices=("all", "probe", "clustering"), default="all")
     parser.add_argument("--num-sequences", type=int, default=None)
     parser.add_argument("--probe-steps", type=int, default=None)
-    parser.add_argument("--controls", action="store_true", help="include shuffled-label and untrained probes")
+    parser.add_argument("--controls", action="store_true", help="include the shuffled-label probe")
     args = parser.parse_args()
 
     payload = diagnose_checkpoint(

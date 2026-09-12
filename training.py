@@ -980,8 +980,6 @@ def train_model(
         "last_val_ce": last_val_ce,
         "last_val_last_position_nll": last_val_nll_by_position[-1],
         "global_step": global_step,
-        "total_samples_seen": samples_seen,
-        "total_tokens_seen": samples_seen * (input_block_size(cfg) - 1),
         "per_epoch_train_pool": cfg.data.train_size,
         "total_optimizer_updates": global_step,
         "total_sequence_draws": samples_seen,

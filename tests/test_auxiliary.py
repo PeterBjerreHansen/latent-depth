@@ -283,6 +283,13 @@ def test_offline_diagnostics_ignore_predictor_and_work_on_auxiliary_checkpoint(t
         probe_steps=2,
     )
     assert result["diagnostics"]["levels"] == [1, 2]
+    controlled = diagnose_checkpoint(
+        tmp_path / "last.pt", split="val", device="cpu", controls=True,
+        num_sequences=8, probe_steps=2,
+    )
+    assert set(controlled["diagnostics"]["probe_controls"]) == {
+        "trained_backbone_shuffled_labels"
+    }
 
 
 def test_load_training_state_rejects_auxiliary_checkpoint(tmp_path: Path):

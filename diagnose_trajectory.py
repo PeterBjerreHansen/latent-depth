@@ -82,7 +82,7 @@ def main() -> None:
     parser.add_argument(
         "--controls",
         action="store_true",
-        help="include shuffled-label and untrained-backbone probes at every checkpoint",
+        help="include the shuffled-label probe at every checkpoint",
     )
     args = parser.parse_args()
     diagnose_trajectory(

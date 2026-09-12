@@ -12,7 +12,7 @@ generated artifacts were removed.
 - smoke training and diagnostics
 - data-size, fixed-exposure, grammar-replication, and saturated-null sweeps
 
-The test suite passed with 78 tests, including the fixed acquisition-analysis
+The test suite passed with 80 tests, including the fixed accessibility-analysis
 tests. The implementation validation also passed
 the data oracle, shifted-loss reference, CPU checkpoint replay, CPU/MPS device
 comparison, and MPS checkpoint replay:

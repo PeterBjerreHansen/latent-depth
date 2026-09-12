@@ -26,10 +26,11 @@ The reusable seams are deliberately small:
 - [`auxiliary.py`](auxiliary.py) defines the fixed residual-target predictor
   and cosine auxiliary loss used by Stage 02.
 - [`diagnostics/`](diagnostics/) observes hidden states without changing NTP.
-- [`summarize_trajectory.py`](summarize_trajectory.py) applies the frozen,
-  same-layer acquisition rule to one raw trajectory.
-- [`summarize_target_depth.py`](summarize_target_depth.py) computes paired
-  acquisition differences and matched-update validation CE across Stage-02 arms.
+- [`summarize_trajectory.py`](summarize_trajectory.py) provides the internal
+  raw-trajectory accessibility analysis used by the Stage-02 summarizer.
+- [`summarize_target_depth.py`](summarize_target_depth.py) is the analysis entry
+  point: it loads raw trajectories, applies the frozen rule, computes paired
+  accessibility differences, and writes the compact comparison table.
 - [`sweep_data_size.py`](sweep_data_size.py) runs explicit training-size or
   replicate sweeps.
 - [`sweep_target_depth.py`](sweep_target_depth.py) runs the Stage-02 fixed-depth

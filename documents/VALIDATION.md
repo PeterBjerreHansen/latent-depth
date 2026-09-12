@@ -21,9 +21,10 @@ accounting, sweep resume configuration, exact update-based checkpoint boundaries
 empirical probe baselines, online vs. offline diagnostics parity, fixed-target
 auxiliary alignment and stop-gradient behavior, auxiliary checkpoint resume,
 and an end-to-end target-depth sweep/resume smoke test. Synthetic acquisition
-analysis tests cover same-layer persistence, explicit censoring, fixed probe
-milestones, Q derivation, paired time bounds, and refusal of mismatched sweep
-schedules. Training checkpoints
+analysis tests cover same-layer persistence, explicit not-confirmed horizons,
+fixed probe milestones, optional controls, Q derivation, paired times with
+unavailable censored differences, partial screens, and refusal of mismatched
+sweep schedules. Training checkpoints
 also carry the optimizer, CPU, CUDA, MPS, grammar, predictor, and
 shuffled-loader state needed for continuation. Strict
 deterministic mode is available for experiments that require kernel-level

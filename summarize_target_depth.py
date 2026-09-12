@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Aggregate per-arm acquisition summaries into a paired target-depth result."""
+"""Analyze raw target-depth trajectories as a paired comparison."""
 
 from __future__ import annotations
 
@@ -10,9 +10,9 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Any, Mapping
 
-from summarize_trajectory import load_acquisition_rule
+from summarize_trajectory import load_acquisition_rule, summarize_trajectory_data
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _load_json(path: Path, description: str) -> dict[str, Any]:
@@ -47,11 +47,13 @@ def _discover_arm_dirs(screen_dir: Path) -> list[Path]:
     return paths
 
 
-def _load_arm(run_dir: Path) -> dict[str, Any]:
+def _load_arm(run_dir: Path, rule: Mapping[str, Any]) -> dict[str, Any]:
     metrics = _load_json(run_dir / "metrics.json", "arm metrics")
     config = _load_json(run_dir / "config.json", "arm config")
-    summary = _load_json(
-        run_dir / "trajectory" / "acquisition.json", "arm acquisition summary"
+    trajectory_path = run_dir / "trajectory" / "trajectory.json"
+    trajectory = _load_json(trajectory_path, "arm diagnostic trajectory")
+    summary = summarize_trajectory_data(
+        trajectory, rule, source=trajectory_path
     )
     target_value = metrics.get("auxiliary_target_layer", config.get("auxiliary", {}).get("target_layer"))
     if target_value is not None and (
@@ -79,6 +81,7 @@ def _load_arm(run_dir: Path) -> dict[str, Any]:
         "config": config,
         "metrics": metrics,
         "history": history,
+        "trajectory": trajectory,
         "summary": summary,
     }
 
@@ -99,7 +102,7 @@ def _trajectory_signature(arm: Mapping[str, Any]) -> dict[str, Any]:
     summary = arm["summary"]
     levels = summary.get("levels")
     if not isinstance(levels, Mapping) or not levels:
-        raise ValueError(f"{arm['run_dir']}: acquisition summary has no levels")
+        raise ValueError(f"{arm['run_dir']}: trajectory analysis has no levels")
     layer_shapes = {
         str(level): sorted(str(layer) for layer in level_data.get("layerwise", {}))
         for level, level_data in levels.items()
@@ -125,30 +128,11 @@ def _history_steps(arm: Mapping[str, Any]) -> list[int]:
 def _validate_paired_group(arms: list[dict[str, Any]], key: tuple[int, int]) -> None:
     if not any(arm["arm"] == "ntp" for arm in arms):
         raise ValueError(f"paired group {_group_label(key)} has no ntp baseline")
+    if not any(arm["arm"] != "ntp" for arm in arms):
+        raise ValueError(f"paired group {_group_label(key)} has no target arm")
     names = [arm["arm"] for arm in arms]
     if len(set(names)) != len(names):
         raise ValueError(f"paired group {_group_label(key)} contains duplicate arm names")
-    model = arms[0]["config"].get("model", {})
-    n_layer = model.get("n_layer") if isinstance(model, Mapping) else None
-    if isinstance(n_layer, bool) or not isinstance(n_layer, int) or n_layer < 0:
-        raise ValueError(
-            f"paired group {_group_label(key)} cannot establish the complete target grid: "
-            "config.model.n_layer must be a nonnegative integer"
-        )
-    expected_names = {"ntp", *(f"target_{layer}" for layer in range(n_layer + 1))}
-    actual_names = set(names)
-    if actual_names != expected_names:
-        missing = sorted(expected_names - actual_names)
-        unexpected = sorted(actual_names - expected_names)
-        detail = []
-        if missing:
-            detail.append(f"missing {missing}")
-        if unexpected:
-            detail.append(f"unexpected {unexpected}")
-        raise ValueError(
-            f"refusing incomplete target-depth screen {_group_label(key)}: "
-            + "; ".join(detail)
-        )
     config = _comparison_config(arms[0]["config"])
     trajectory = _trajectory_signature(arms[0])
     history_steps = _history_steps(arms[0])
@@ -161,7 +145,7 @@ def _validate_paired_group(arms: list[dict[str, Any]], key: tuple[int, int]) -> 
         if _trajectory_signature(arm) != trajectory:
             raise ValueError(
                 f"refusing to compare {_group_label(key)}: arms do not share the same "
-                "diagnostic hierarchy/checkpoint schedule or acquisition rule"
+                "diagnostic hierarchy/checkpoint schedule or accessibility rule"
             )
         if _history_steps(arm) != history_steps:
             raise ValueError(
@@ -173,44 +157,30 @@ def _validate_paired_group(arms: list[dict[str, Any]], key: tuple[int, int]) -> 
 def _event(summary: Mapping[str, Any], level: int) -> dict[str, Any]:
     levels = summary.get("levels", {})
     value = levels.get(str(level))
-    if not isinstance(value, Mapping) or not isinstance(value.get("emergence"), Mapping):
-        raise ValueError(f"acquisition summary has no hierarchy level {level}")
-    return dict(value["emergence"])
+    if not isinstance(value, Mapping) or not isinstance(value.get("accessibility"), Mapping):
+        raise ValueError(f"trajectory analysis has no hierarchy level {level}")
+    return dict(value["accessibility"])
 
 
 def _time_fields(event: Mapping[str, Any]) -> tuple[int | None, str, int | None]:
     status = event.get("status")
     if status == "observed":
         return int(event["onset_step"]), "observed", None
-    if status == "censored":
-        return None, "censored", int(event["through_step"])
+    if status == "not_confirmed":
+        return None, "not_confirmed", int(event["through_step"])
     raise ValueError(f"invalid acquisition event status: {status!r}")
 
 
 def _difference(
     left: Mapping[str, Any], right: Mapping[str, Any]
 ) -> dict[str, Any]:
-    """Describe left - right, retaining exact values or mathematically valid bounds."""
-    left_status = left["status"]
-    right_status = right["status"]
-    if left_status == "observed" and right_status == "observed":
+    """Describe left - right only when both event times are observed."""
+    if left["status"] == "observed" and right["status"] == "observed":
         return {
             "status": "observed",
             "value": int(left["onset_step"]) - int(right["onset_step"]),
         }
-    if left_status == "censored" and right_status == "observed":
-        return {
-            "status": "lower_bound",
-            "operator": ">",
-            "bound": int(left["through_step"]) - int(right["onset_step"]),
-        }
-    if left_status == "observed" and right_status == "censored":
-        return {
-            "status": "upper_bound",
-            "operator": "<",
-            "bound": int(left["onset_step"]) - int(right["through_step"]),
-        }
-    return {"status": "unresolved"}
+    return {"status": "unavailable"}
 
 
 def _direct_difference_value(comparison: Mapping[str, Any]) -> int | None:
@@ -229,6 +199,8 @@ def _matched_ce(
     step = int(event["onset_step"])
     arm_history = _history_by_step(arm)
     ntp_history = _history_by_step(ntp)
+    if step not in arm_history or step not in ntp_history:
+        return None
     arm_ce = arm_history[step]
     ntp_ce = ntp_history[step]
     return {
@@ -261,7 +233,6 @@ def _primary_row(
         row[f"tau_{level}_through_step"] = through
         row[f"delta_tau_{level}"] = _direct_difference_value(delta)
         row[f"delta_tau_{level}_status"] = delta["status"]
-        row[f"delta_tau_{level}_bound"] = delta.get("bound")
         row["levels"][str(level)] = {
             "event": events[level],
             "ntp_event": ntp_events[level],
@@ -276,7 +247,6 @@ def _primary_row(
         interval = _difference(events[3], events[2])
         row["tau_3_minus_tau_2"] = _direct_difference_value(interval)
         row["tau_3_minus_tau_2_status"] = interval["status"]
-        row["tau_3_minus_tau_2_bound"] = interval.get("bound")
         row["interval"] = interval
     return row
 
@@ -350,19 +320,12 @@ def summarize_target_depth_data(
                 "model_seed": key[1],
                 "primary_levels": group_levels,
                 "checkpoint_steps": group_arms[0]["summary"]["checkpoint_steps"],
+                "targets_present": [arm["arm"] for arm in group_arms],
                 "protocol": {
-                    "per_epoch_train_pool": group_arms[0]["metrics"].get(
-                        "per_epoch_train_pool", group_arms[0]["config"].get("data", {}).get("train_size")
-                    ),
-                    "total_optimizer_updates": group_arms[0]["metrics"].get(
-                        "total_optimizer_updates", group_arms[0]["metrics"].get("global_step")
-                    ),
-                    "total_sequence_draws": group_arms[0]["metrics"].get(
-                        "total_sequence_draws", group_arms[0]["metrics"].get("total_samples_seen")
-                    ),
-                    "total_predicted_tokens": group_arms[0]["metrics"].get(
-                        "total_predicted_tokens", group_arms[0]["metrics"].get("total_tokens_seen")
-                    ),
+                    "per_epoch_train_pool": group_arms[0]["metrics"].get("per_epoch_train_pool"),
+                    "total_optimizer_updates": group_arms[0]["metrics"].get("total_optimizer_updates"),
+                    "total_sequence_draws": group_arms[0]["metrics"].get("total_sequence_draws"),
+                    "total_predicted_tokens": group_arms[0]["metrics"].get("total_predicted_tokens"),
                     "resample_train_each_epoch": group_arms[0]["config"].get("data", {}).get(
                         "resample_train_each_epoch"
                     ),
@@ -420,15 +383,10 @@ def summarize_target_depth(
         raise ValueError(
             f"no grammar_*/model_*/<arm>/metrics.json files found under {screen_path}"
         )
-    arms = [_load_arm(run_dir) for run_dir in run_dirs]
-    rule = None if rule_path is None else load_acquisition_rule(rule_path)
-    if rule is not None:
-        for arm in arms:
-            if arm["summary"].get("rule") != rule:
-                raise ValueError(
-                    f"{arm['run_dir']}: acquisition summary was not produced with "
-                    f"the requested rule {rule_path}"
-                )
+    if rule_path is None:
+        raise ValueError("--rule is required so the primary accessibility rule is explicit")
+    rule = load_acquisition_rule(rule_path)
+    arms = [_load_arm(run_dir, rule) for run_dir in run_dirs]
     result = summarize_target_depth_data(
         arms, primary_levels=primary_levels, screen_dir=screen_path
     )
@@ -436,8 +394,13 @@ def summarize_target_depth(
         result["rule"] = rule
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
+    disk_result = deepcopy(result)
+    for group in disk_result["groups"]:
+        for arm in group["arms"]:
+            arm.pop("summary", None)
+            arm.pop("config", None)
     (output / "comparison.json").write_text(
-        json.dumps(result, indent=2) + "\n", encoding="utf-8"
+        json.dumps(disk_result, indent=2) + "\n", encoding="utf-8"
     )
 
     rows = result["validation_ce_by_step"]
