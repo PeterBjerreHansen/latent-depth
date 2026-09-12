@@ -125,9 +125,6 @@ not-confirmed NTP event cannot hide auxiliary movement at another layer.
 The controls are optional; when requested, `--controls` adds the trained-backbone
 shuffled-label probe.
 
-The comparison contains absolute accessibility times, exact paired differences
-when available, matched-update validation CE, exposure accounting, and the
-targets present in each group.
 
 ## Interpretation and follow-up
 
