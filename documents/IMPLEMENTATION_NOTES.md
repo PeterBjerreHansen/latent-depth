@@ -51,6 +51,9 @@ sequence samples and prediction tokens seen. A fixed-exposure sweep can set a
 positive whole-number `samples_per_example`; it then runs complete dataset
 passes using the effective DataLoader batch size, so different training-set
 sizes receive matched data exposure rather than a matched update count.
+In the developmental resampling regime, the configured training pool is a
+fresh per-epoch pool, so the metrics also record its size and the resulting
+total sequence and prediction-token exposure explicitly.
 
 When `train.eval_every_updates` is set, evaluation and checkpoint selection
 use a fixed optimizer-step cadence instead of `eval_every_epochs`. The optional
@@ -89,20 +92,25 @@ and probes on an untrained backbone.
 
 Abstraction level `r` is counted upward from the leaves. The implementation
 uses `trees[L-r]` and the first constituent completion position `s**r - 1`.
-Thus all baseline `A(s,j,r)` and `C(s,j,r)` values refer to the first
+Thus all baseline `A(s,k,r)` and `C(s,k,r)` values refer to the first
 completed constituent at each level; they do not silently average over all
 constituent positions. The non-synonym reference is a generic control, and the
 causal adaptation should not be described as reproducing a specific
 non-causal data2vec experiment.
 
 Diagnostics preserve the model's parameters, train/eval mode, and global RNG
-states. Probe reports retain the theoretical uniform chance level and also
-report empirical majority and balanced-accuracy baselines. `diagnose.py`
+states. Probe reports retain the theoretical uniform chance level,
+ordinary-majority accuracy, and the balanced-majority baseline computed from
+the classes actually represented in the held-out probe-evaluation split.
+`diagnose.py`
 regenerates the selected validation/test split from the checkpoint's stored
 grammar and provides an offline parity path. `diagnose_trajectory.py` applies
-that observer to every exact-step snapshot, while `plot_trajectory.py` plots
-validation NLL by prediction position plus accessibility, synonym invariance,
-and latent-replacement sensitivity against optimizer updates.
+that observer to every exact-step snapshot. The two fixed-analysis scripts
+then apply the frozen same-layer acquisition rule, record emergence and
+confirmation with explicit censoring, and aggregate paired target-depth arms.
+`plot_trajectory.py` plots validation NLL by prediction position plus fixed-scale
+accessibility, synonym invariance, and the centered latent-replacement contrast
+`Q` against optimizer updates.
 
 ## Checkpoint semantics
 

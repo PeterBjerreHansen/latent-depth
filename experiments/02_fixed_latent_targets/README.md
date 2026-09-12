@@ -1,7 +1,7 @@
 # Stage 02: fixed auxiliary target depth
 
 Stage 01 supplies the baseline developmental clock for the canonical
-`P=65,536` regime. Stage 02 asks the next causal question:
+per-epoch training-pool regime. Stage 02 asks the next causal question:
 
 > Does predicting a fixed future Transformer residual stream accelerate those
 > hierarchy transitions, and does the useful target depth differ between H2
@@ -65,7 +65,7 @@ The screen is defined by
 copies the Stage-01 canonical regime:
 
 - RHM: `v=n=16`, `m=4`, `s=2`, `L=5`;
-- `P=65,536`, validation/test size `16,384`;
+- per-epoch training pool `P=65,536`, validation/test size `16,384`;
 - 8 blocks, 8 heads, width 256, dropout 0;
 - AdamW, learning rate `3e-4`, batch size 256;
 - 5,000 optimizer updates;
@@ -85,7 +85,58 @@ cannot be mistaken for a complete progressive-depth comparison.
 The primary target-depth screen uses `lambda=0.1`. The follow-up screens use
 the same complete target-depth grid at fixed `lambda=0.3` and `lambda=1.0`.
 These are separate fixed-weight screens, not an adaptive weighting experiment.
-Before looking at the results, use these practical margins:
+The immediate follow-up is the fresh L5, `lambda=0.1` screen. The larger-weight
+screens are conditional follow-ups after that screen has been analyzed.
+
+## Frozen acquisition analysis
+
+Raw trajectories are collected by `diagnose_trajectory.py`; that command makes
+no developmental judgments. The committed
+[`acquisition_rule.json`](acquisition_rule.json) is the single source of truth
+for acquisition analysis. It requires balanced accessibility and synonym
+invariance at the **same observer layer** for two consecutive diagnostic
+checkpoints:
+
+\[
+A_{r,k}(t) \ge \max\{A_{r,k}(0)+\delta_0,
+A^{\rm shuffled}_{r,k}(t)+\delta_{\rm shuf},
+A^{\rm balanced\ baseline}_{r}+\delta_{\rm base}\},
+\]
+
+\[
+C_{r,k}(t) \ge \max\{C_{r,k}(0)+\delta_C,C_{\min}\}.
+\]
+
+The first checkpoint in the persistent pair is `onset_step`; the second is
+`confirmed_step`. The level onset `tau_r` is the earliest same-layer onset over
+observer layers. Every layerwise onset is retained, and an unreached level or
+layer is explicitly marked `censored` through the final diagnostic step.
+
+The rule also reports independent balanced-probe milestones (`0.50`, `0.75`,
+and `0.90`) and the normalized intervention contrast
+
+\[
+Q_{r,k}(t)=\frac{d_{\rm variable}-d_{\rm syn}}
+                 {d_{\rm non}+\epsilon}.
+\]
+
+`Q` is a reported representation diagnostic, not an additional acquisition
+hurdle. Detectable emergence and high decoding accuracy are separate claims.
+
+Apply the rule with:
+
+```bash
+python summarize_trajectory.py \
+  --trajectory RUN/trajectory/trajectory.json \
+  --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+  --output RUN/trajectory/acquisition.json
+```
+
+Do not change the rule after inspecting auxiliary-arm summaries. If its margins
+need calibration, inspect the fresh NTP trajectory and its controls first, then
+edit and freeze the committed rule before summarizing any target arm.
+
+Before looking at results, use these practical margins:
 
 - one 500-update checkpoint is the minimum meaningful acquisition-time
   difference, because the trajectory diagnostics use exact 500-update saves;
@@ -112,9 +163,14 @@ the paired sweep the same epoch-specific examples without requiring duplicate
 checking. A resumed run regenerates the pool for the checkpoint's current
 epoch while preserving the checkpoint's sampler position.
 
-At 65,536 examples and batch size 256, 10,000 updates span about 39 fresh
-training pools. The resulting training metrics are evaluated on the current
-epoch's pool, while model selection and the final test remain held out.
+With epoch-wise resampling, `65,536` is the size of each fresh training pool,
+not the total finite dataset seen during training. At batch size 256, the L5
+screen processes `5,000 × 256 = 1,280,000` sequence draws and `39,680,000`
+predicted tokens per arm. The L6, 10,000-update follow-up would process
+`2,560,000` sequence draws and `161,280,000` predicted tokens per arm. Record
+the per-epoch pool, optimizer updates, sequence draws, predicted tokens, and
+`resample_train_each_epoch=true` for every result. Training CE is evaluated on
+the current epoch's pool; model selection and the final test remain held out.
 
 ## Pre-run expectations
 
@@ -198,9 +254,15 @@ The main failure modes are:
 - an arm reaches a better intermediate validation CE but degrades at later
   checkpoints, indicating that the auxiliary objective has become harmful after
   the useful transition window; or
-- the H2-to-H3 order is disrupted, or the raw `Q` contrast becomes persistently
-  non-positive, indicating that the auxiliary objective changed the
+- the raw `Q` contrast becomes persistently non-positive or other controls show
+  representation collapse, indicating that the auxiliary objective changed the
   representation in a way that is not supporting the intended abstraction.
+
+An auxiliary arm showing H3 before or near H2 is not automatically harmful.
+Earlier H3 accessibility with healthy same-layer A+C/Q controls and good NTP
+is potentially the effect of interest. The comparison must still report both
+absolute times: a shorter H2-to-H3 interval caused by delaying H2 is not H3
+acceleration.
 
 `lambda=1.0` is therefore a stress test, not an expectation that more
 auxiliary pressure must be better. H1 remains supporting evidence because its
@@ -256,9 +318,11 @@ the exact-step snapshots to measure layerwise H1--H5 acquisition. After those
 diagnostics and the report are finished, the step snapshots can be removed if
 the retained metrics and diagnostic JSON are sufficient.
 
-## Run the weight-sensitivity screens
+## Conditional weight-sensitivity screens
 
-Run the same full target-depth grid at the two larger fixed auxiliary weights:
+After the fresh L5/`lambda=0.1` screen has been diagnosed, summarized, and
+reviewed, run the same full target-depth grid at the two larger fixed auxiliary
+weights if that follow-up is justified:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
@@ -270,14 +334,57 @@ PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
   --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_1_0_5000_updates
 ```
 
-## Diagnose the developmental trajectories
+## Diagnose and summarize the developmental trajectories
 
 Use exactly the Stage-01 observer pipeline. The final Stage-01 confirmation
 used 1,024 validation examples and 300 probe steps, so the first Stage-02
 comparison should use the same diagnostic settings:
 
 ```bash
-for screen in target_depth_l5_lambda_0_1_5000_updates target_depth_l5_lambda_0_3_5000_updates target_depth_l5_lambda_1_0_5000_updates; do
+for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
+  screen=target_depth_l5_lambda_0_1_5000_updates
+  PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
+    --run-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm \
+    --output-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory \
+    --device mps \
+    --num-sequences 1024 \
+    --probe-steps 300 \
+    --controls
+
+  python summarize_trajectory.py \
+    --trajectory experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
+    --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+    --output experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/acquisition.json
+
+  python plot_trajectory.py \
+    --trajectory experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
+    --metrics experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/metrics.json \
+    --output experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.png
+done
+
+python summarize_target_depth.py \
+  --screen-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_1_5000_updates \
+  --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_1_5000_updates/analysis
+
+python plot_trajectory.py \
+  --comparison experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_1_5000_updates/analysis/comparison.json \
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_1_5000_updates/analysis/plots
+```
+
+The sweep summarizer writes absolute `tau_2`/`tau_3`, paired `Delta tau`, the
+H2-to-H3 interval, explicit censoring bounds, matched-update validation CE, and
+`validation_ce_by_step.csv`. It refuses to compare arms with different
+hierarchy configurations, diagnostic schedules, or validation checkpoint
+steps. It also refuses a partial target-depth screen: each paired group must
+contain NTP and every `target_0` through `target_8` arm.
+
+The larger-weight screens are conditional. After the fresh `lambda=0.1` L5
+comparison is reviewed, repeat the same diagnosis, summary, and plot workflow
+for a pre-approved weight follow-up if needed:
+
+```bash
+for screen in target_depth_l5_lambda_0_3_5000_updates target_depth_l5_lambda_1_0_5000_updates; do
   for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
     PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
       --run-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm \
@@ -287,11 +394,27 @@ for screen in target_depth_l5_lambda_0_1_5000_updates target_depth_l5_lambda_0_3
       --probe-steps 300 \
       --controls
 
+    python summarize_trajectory.py \
+      --trajectory experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
+      --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+      --output experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/acquisition.json
+
     python plot_trajectory.py \
       --trajectory experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
       --metrics experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/metrics.json \
       --output experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.png
   done
+done
+
+for screen in target_depth_l5_lambda_0_3_5000_updates target_depth_l5_lambda_1_0_5000_updates; do
+  python summarize_target_depth.py \
+    --screen-dir experiments/02_fixed_latent_targets/runs/$screen \
+    --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+    --output-dir experiments/02_fixed_latent_targets/runs/$screen/analysis
+
+  python plot_trajectory.py \
+    --comparison experiments/02_fixed_latent_targets/runs/$screen/analysis/comparison.json \
+    --output-dir experiments/02_fixed_latent_targets/runs/$screen/analysis/plots
 done
 ```
 
@@ -308,7 +431,7 @@ intervention contrast used as a collapse check.
 The report should reduce the screens to a table of this form, with entries for
 each weight/target combination:
 
-| lambda | fixed target | H2 onset `tau_2` | H3 onset `tau_3` | best validation CE | CE cost vs NTP |
+| lambda | fixed target | H2 `tau_2` / `Delta tau_2` | H3 `tau_3` / `Delta tau_3` | `tau_3 - tau_2` | best validation CE / matched CE |
 |---:|---|---:|---:|---:|---:|
 | `0.1`, `0.3`, or `1.0` | NTP or `j=0,...,8` | | | | |
 
@@ -320,17 +443,17 @@ new hierarchy-acquisition threshold. A developmental crossover would look like
 different target depths minimizing
 `tau_2` and `tau_3`. If one target wins both transitions, that weakens the need
 for adaptive target selection but is still a useful positive auxiliary result.
-If no target beats NTP, first assess the common auxiliary weight before adding
-more complicated machinery.
+If no target beats NTP, first assess the common auxiliary weight and probe
+budget before adding more complicated machinery.
 
-## Next run: extended-hierarchy target-depth sweep
+## Conditional follow-up: extended-hierarchy target-depth sweep
 
-The initial `L=5` screen did not acquire H4 by update 5,000, so it cannot
-decide whether late targets help later hierarchy levels. The next Stage-02 run
-therefore uses `L=6`, `lambda=1.0`, and 10,000 updates. It sweeps the complete
-target grid and includes an NTP arm in the same sweep. The NTP arm is listed
-first and is the paired baseline for every target depth. This screen uses a
-fresh training pool at every epoch; validation and test pools stay fixed.
+Do not run this screen until the fresh resampled L5/`lambda=0.1` NTP baseline
+and complete target-depth comparison have been summarized and reviewed. The old
+fixed-data failure to acquire H4 is not a calibration for the fresh-data regime.
+If the L5 result leaves a justified late-level question, this conditional
+follow-up uses `L=6`, `lambda=1.0`, and 10,000 updates. It sweeps the complete
+target grid and includes an NTP arm in the same sweep.
 
 Use [`configs/target_depth_screen_l6_lambda_1_0.json`](configs/target_depth_screen_l6_lambda_1_0.json)
 and write the result under
@@ -366,6 +489,11 @@ for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 ta
     --probe-steps 300 \
     --controls
 
+  python summarize_trajectory.py \
+    --trajectory experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/trajectory/trajectory.json \
+    --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+    --output experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/trajectory/acquisition.json
+
   python plot_trajectory.py \
     --trajectory experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/trajectory/trajectory.json \
     --metrics experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/metrics.json \
@@ -373,7 +501,9 @@ for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 ta
 done
 ```
 
-Use the same Stage-02 acquisition rule. H4 should have a realistic chance to
+Then run `summarize_target_depth.py --rule experiments/02_fixed_latent_targets/acquisition_rule.json`
+and the comparison plotter on the L6 screen as shown for L5 above. H4 should have a
+realistic chance to
 appear, while H5 may remain censored. If H4 remains censored, the sweep can
 still describe effects on H2/H3, but it cannot test late-level specialization
 directly. Do not add another auxiliary weight or adaptive target schedule

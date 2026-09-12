@@ -1,0 +1,19 @@
+{
+  "persistence_checkpoints": 2,
+  "accessibility": {
+    "metric": "balanced_accuracy",
+    "margin_over_step0": 0.05,
+    "margin_over_shuffled": 0.05,
+    "margin_over_balanced_baseline": 0.05
+  },
+  "clustering": {
+    "min_score": 0.05,
+    "margin_over_step0": 0.05
+  },
+  "probe_milestones": [
+    0.5,
+    0.75,
+    0.9
+  ],
+  "epsilon": 1e-8
+}

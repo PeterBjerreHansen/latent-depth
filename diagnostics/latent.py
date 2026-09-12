@@ -91,7 +91,16 @@ def _fit_linear_probes(
     seed: int,
     device: torch.device,
     eps: float = 1e-8,
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, int, int]:
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    int,
+    int,
+]:
     """Fit independent probes and return accuracy-aware evaluation baselines."""
     if features.ndim != 4 or labels.ndim != 2:
         raise ValueError("unexpected probe feature/label rank")
@@ -140,11 +149,15 @@ def _fit_linear_probes(
         predictions_cpu = predictions.cpu()
         labels_cpu = y_eval_base.cpu()
         majority_accuracy = torch.empty(R, dtype=torch.float64)
+        balanced_majority_accuracy = torch.empty(R, dtype=torch.float64)
+        represented_classes = torch.empty(R, dtype=torch.int64)
         balanced_accuracy = torch.empty(R, J, dtype=torch.float64)
         for r in range(R):
             class_counts = torch.bincount(labels_cpu[r], minlength=vocab_size).to(torch.float64)
             present = class_counts > 0
             majority_accuracy[r] = class_counts.max() / eval_size
+            represented_classes[r] = present.sum()
+            balanced_majority_accuracy[r] = 1.0 / represented_classes[r]
             for j in range(J):
                 correct = (predictions_cpu[r, j] == labels_cpu[r]).to(torch.float64)
                 correct_by_class = torch.bincount(
@@ -153,7 +166,16 @@ def _fit_linear_probes(
                 balanced_accuracy[r, j] = (
                     (correct_by_class[present] / class_counts[present]).mean()
                 )
-    return accuracy, ce, majority_accuracy, balanced_accuracy, fit_size, eval_size
+    return (
+        accuracy,
+        ce,
+        majority_accuracy,
+        balanced_majority_accuracy,
+        represented_classes,
+        balanced_accuracy,
+        fit_size,
+        eval_size,
+    )
 
 
 def run_probe_control(
@@ -197,7 +219,16 @@ def run_probe_control(
         if shuffle_labels:
             generator = torch.Generator(device="cpu").manual_seed(cfg.diagnostics.seed + 91_337)
             labels = labels[:, torch.randperm(n, generator=generator)]
-        accuracy, ce, majority_accuracy, balanced_accuracy, fit_size, eval_size = _fit_linear_probes(
+        (
+            accuracy,
+            ce,
+            majority_accuracy,
+            balanced_majority_accuracy,
+            represented_classes,
+            balanced_accuracy,
+            fit_size,
+            eval_size,
+        ) = _fit_linear_probes(
             features,
             labels,
             vocab_size=cfg.rhm.v,
@@ -209,9 +240,22 @@ def run_probe_control(
         )
         return {
             "shuffle_labels": shuffle_labels,
+            "uniform_random_accuracy": 1.0 / cfg.rhm.v,
             "chance_accuracy": 1.0 / cfg.rhm.v,
+            "ordinary_majority_accuracy_by_level": {
+                str(level): float(majority_accuracy[r])
+                for r, level in enumerate(levels)
+            },
             "majority_accuracy_by_level": {
                 str(level): float(majority_accuracy[r])
+                for r, level in enumerate(levels)
+            },
+            "represented_classes_by_level": {
+                str(level): int(represented_classes[r])
+                for r, level in enumerate(levels)
+            },
+            "balanced_majority_accuracy_by_level": {
+                str(level): float(balanced_majority_accuracy[r])
                 for r, level in enumerate(levels)
             },
             "fit_examples": fit_size,
@@ -396,7 +440,16 @@ def run_latent_diagnostics(
             "layer_convention": "0=embedding stream; j>0=post Transformer block j; final LN excluded",
         }
         if cfg.diagnostics.linear_probe:
-            accuracy, ce, majority_accuracy, balanced_accuracy, fit_size, eval_size = _fit_linear_probes(
+            (
+                accuracy,
+                ce,
+                majority_accuracy,
+                balanced_majority_accuracy,
+                represented_classes,
+                balanced_accuracy,
+                fit_size,
+                eval_size,
+            ) = _fit_linear_probes(
                 original_features,
                 labels,
                 vocab_size=cfg.rhm.v,
@@ -407,9 +460,22 @@ def run_latent_diagnostics(
                 eps=cfg.diagnostics.eps,
             )
             probe: dict[str, Any] = {
+                "uniform_random_accuracy": 1.0 / cfg.rhm.v,
                 "chance_accuracy": 1.0 / cfg.rhm.v,
+                "ordinary_majority_accuracy_by_level": {
+                    str(level): float(majority_accuracy[r])
+                    for r, level in enumerate(levels)
+                },
                 "majority_accuracy_by_level": {
                     str(level): float(majority_accuracy[r])
+                    for r, level in enumerate(levels)
+                },
+                "represented_classes_by_level": {
+                    str(level): int(represented_classes[r])
+                    for r, level in enumerate(levels)
+                },
+                "balanced_majority_accuracy_by_level": {
+                    str(level): float(balanced_majority_accuracy[r])
                     for r, level in enumerate(levels)
                 },
                 "probe_steps": cfg.diagnostics.probe_steps,
@@ -425,7 +491,12 @@ def run_latent_diagnostics(
                     "balanced_accuracy_by_layer": [
                         float(x) for x in balanced_accuracy[r_index].tolist()
                     ],
+                    "ordinary_majority_accuracy": float(majority_accuracy[r_index]),
                     "majority_accuracy": float(majority_accuracy[r_index]),
+                    "represented_classes": int(represented_classes[r_index]),
+                    "balanced_majority_accuracy": float(
+                        balanced_majority_accuracy[r_index]
+                    ),
                     "ce_by_layer": [float(x) for x in ce[r_index].tolist()],
                 }
             output["linear_probe"] = probe

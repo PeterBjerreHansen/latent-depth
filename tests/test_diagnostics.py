@@ -120,7 +120,16 @@ def test_linear_probe_fitter_recovers_linearly_encoded_labels():
          torch.stack([1.5 * base, 0.75 * base, 3.0 * base], dim=0)], dim=0
     )
     probe_labels = torch.stack([labels, labels], dim=0)
-    accuracy, ce, majority_accuracy, balanced_accuracy, fit_size, eval_size = _fit_linear_probes(
+    (
+        accuracy,
+        ce,
+        majority_accuracy,
+        balanced_majority_accuracy,
+        represented_classes,
+        balanced_accuracy,
+        fit_size,
+        eval_size,
+    ) = _fit_linear_probes(
         features, probe_labels, vocab_size=vocab, steps=80, learning_rate=0.05,
         seed=123, device=torch.device("cpu")
     )
@@ -129,6 +138,11 @@ def test_linear_probe_fitter_recovers_linearly_encoded_labels():
     assert torch.all(ce < 0.2)
     assert torch.all(majority_accuracy >= 0.25)
     assert torch.all(majority_accuracy <= 1.0)
+    assert torch.all(represented_classes == vocab)
+    assert torch.allclose(
+        balanced_majority_accuracy,
+        torch.full((2,), 1.0 / vocab, dtype=balanced_majority_accuracy.dtype),
+    )
     assert torch.all(balanced_accuracy > 0.99)
 
 
@@ -200,6 +214,7 @@ def test_full_diagnostics_preserve_backbone_rng_and_mode():
         assert len(result["linear_probe"]["by_level"][level]["accuracy_by_layer"]) == 3
         assert "majority_accuracy" in result["linear_probe"]["by_level"][level]
         assert len(result["linear_probe"]["by_level"][level]["balanced_accuracy_by_layer"]) == 3
+        assert "balanced_majority_accuracy" in result["linear_probe"]["by_level"][level]
         assert len(result["synonym_clustering"]["by_level"][level]["score_by_layer"]) == 3
         assert len(result["variable_sensitivity"]["by_level"][level]["sensitivity_by_layer"]) == 3
 
@@ -215,5 +230,8 @@ def test_probe_controls_preserve_rng_and_report_chance_reference():
     assert result["shuffle_labels"] is True
     assert result["chance_accuracy"] == 1.0 / cfg.rhm.v
     assert set(result["majority_accuracy_by_level"]) == {"1", "2"}
+    assert set(result["ordinary_majority_accuracy_by_level"]) == {"1", "2"}
+    assert set(result["represented_classes_by_level"]) == {"1", "2"}
+    assert set(result["balanced_majority_accuracy_by_level"]) == {"1", "2"}
     assert set(result["balanced_accuracy_by_level"]) == {"1", "2"}
     assert set(result["accuracy_by_level"]) == {"1", "2"}

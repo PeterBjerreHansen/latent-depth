@@ -188,6 +188,11 @@ def test_training_metrics_report_last_position_and_exposure_baselines(tmp_path: 
     assert metrics["total_tokens_seen"] == (
         metrics["total_samples_seen"] * (cfg.rhm.s**cfg.rhm.L - 1)
     )
+    assert metrics["per_epoch_train_pool"] == cfg.data.train_size
+    assert metrics["total_optimizer_updates"] == cfg.train.max_updates
+    assert metrics["total_sequence_draws"] == metrics["total_samples_seen"]
+    assert metrics["total_predicted_tokens"] == metrics["total_tokens_seen"]
+    assert metrics["resample_train_each_epoch"] is False
     assert metrics["history"][-1]["samples_seen"] == metrics["total_samples_seen"]
     assert metrics["history"][-1]["tokens_seen"] == metrics["total_tokens_seen"]
     assert metrics["history"][-1]["val_last_position_nll"] == metrics["last_val_last_position_nll"]

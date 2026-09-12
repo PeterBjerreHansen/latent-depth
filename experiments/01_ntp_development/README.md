@@ -13,8 +13,9 @@ rerun with the criteria below before proceeding to any auxiliary objective.
 - Binary RHM with `v=n=16`, `m=4`, `s=2`, and `L=5`.
 - Ordinary causal NTP only; no latent auxiliary loss.
 - Eight Transformer blocks, eight heads, width 256, batch size 256.
-- The required confirmation rerun is fixed at `P=65,536` with the full 2 × 2
-  grammar/model seed factorial in `configs/replication.json`.
+- The required confirmation rerun uses a per-epoch training pool of
+  `P=65,536` with the full 2 × 2 grammar/model seed factorial in
+  `configs/replication.json`.
 - The confirmation rerun samples a fresh training pool at the start of every
   epoch from the same grammar; validation and test pools remain fixed.
 - `configs/regime_search.json` is retained for optional fresh artifacts only;
@@ -25,9 +26,14 @@ rerun with the criteria below before proceeding to any auxiliary objective.
   post-block streams, with shuffled-label and untrained-backbone controls.
 
 The diagnostics report the first completed constituent at positions
-`t=1, 3, 7, 15` for `H1` through `H4`. Layer `j=0` is the embedding stream;
-`j=1,...,8` are post-block residual streams. A full acquisition claim must
-use the same layer for accessibility, synonym invariance, and sensitivity.
+`t=1, 3, 7, 15` for `H1` through `H4`. Observer layer `k=0` is the embedding
+stream; `k=1,...,8` are post-block residual streams. A full acquisition claim
+must use the same observer layer for accessibility and synonym invariance;
+report the Q collapse diagnostic at that same layer.
+The numeric same-layer A+C rule is committed in
+[`../02_fixed_latent_targets/acquisition_rule.json`](../02_fixed_latent_targets/acquisition_rule.json).
+Calibrate it from the fresh NTP trajectory and controls, freeze it, and then
+apply it unchanged to auxiliary arms.
 
 ## Pre-run expectation and decision gate
 
@@ -77,10 +83,13 @@ is insufficient.
 #### Latent accessibility above controls
 
 For each `H_r`, balanced accuracy of a frozen linear probe should rise clearly
-above its step-zero value, the shuffled-label probe, and the empirical
-majority-class baseline. The theoretical uniform chance value is useful
-context, but step-zero accuracy need not equal it because token identity and
-position can make information linearly accessible before training.
+above its step-zero value, the shuffled-label probe, and the balanced-majority
+baseline. The balanced-majority baseline is `1/K`, where `K` is the number of
+classes represented in the held-out probe-evaluation split. Ordinary majority
+frequency remains the reference only for ordinary accuracy. The theoretical
+uniform chance value is useful context, but step-zero accuracy need not equal it
+because token identity and position can make information linearly accessible
+before training.
 
 #### Synonym invariance at the same transition
 
@@ -95,11 +104,11 @@ C_{j,r}=1-\frac{d_{\mathrm{syn}}}{d_{\mathrm{non}}}
 should move from its initial baseline toward positive values at approximately
 the same training ages at which `H_r` becomes accessible. A probe that rises
 while clustering remains flat near zero is evidence for decodability, not yet
-for the abstraction of interest. For a full acquisition claim, accessibility,
-invariance, and sensitivity must all hold at the same residual-stream layer
-`j`; values from different layers may not be combined. Same-layer A+C is the
-primary developmental evidence. H1 is useful supporting context, but its probe
-signal is confounded by local token identity and is not the core clock.
+for the abstraction of interest. For a full acquisition claim, accessibility
+and invariance must both hold at the same residual-stream layer `k`; values
+from different layers may not be combined. Same-layer A+C is the primary
+developmental evidence. H1 is useful supporting context, but its probe signal
+is confounded by local token identity and is not the core clock.
 
 #### Sensitivity to changing the latent
 
@@ -185,8 +194,8 @@ the largest legacy `S` value from another layer.
 The Stage 01 report must include, on the same training-age axis:
 
 - held-out mean and per-position NTP NLL;
-- layer-by-level balanced probe accuracy with shuffled-label, majority, and
-  untrained-backbone controls;
+- layer-by-level balanced probe accuracy with shuffled-label,
+  balanced-majority, ordinary-majority, and untrained-backbone controls;
 - synonym-clustering scores and synonym/non-synonym distances;
 - latent-replacement sensitivity;
 - transition estimates or clearly marked qualitative transition windows; and
@@ -253,7 +262,11 @@ python plot_trajectory.py \
 ```
 
 The trajectory plot includes validation NLL by prediction position and the
-layer-by-level accessibility, synonym-invariance, and sensitivity heatmaps.
+layer-by-level accessibility, synonym-invariance, and normalized intervention
+contrast (`Q`) heatmaps.
+For machine-readable transition times, summarize each trajectory with
+`summarize_trajectory.py` before filling this report; visual heatmaps are not an
+acquisition-time definition.
 
 ## Decision gate
 

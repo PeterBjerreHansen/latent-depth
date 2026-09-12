@@ -11,7 +11,9 @@ auxiliary-loss experiment after the Stage-01 baseline gate.
 ```text
 RHM rules and trees → leaf dataset → causal nanoGPT → NTP checkpoints
                                                         ↓
-                                      per-position NLL and latent diagnostics
+                           raw diagnostics → fixed acquisition analysis
+                                                        ↓
+                                      comparison plots and results
                                                         ↓
                                       fixed residual-target auxiliary arms
 ```
@@ -24,6 +26,10 @@ The reusable seams are deliberately small:
 - [`auxiliary.py`](auxiliary.py) defines the fixed residual-target predictor
   and cosine auxiliary loss used by Stage 02.
 - [`diagnostics/`](diagnostics/) observes hidden states without changing NTP.
+- [`summarize_trajectory.py`](summarize_trajectory.py) applies the frozen,
+  same-layer acquisition rule to one raw trajectory.
+- [`summarize_target_depth.py`](summarize_target_depth.py) computes paired
+  acquisition differences and matched-update validation CE across Stage-02 arms.
 - [`sweep_data_size.py`](sweep_data_size.py) runs explicit training-size or
   replicate sweeps.
 - [`sweep_target_depth.py`](sweep_target_depth.py) runs the Stage-02 fixed-depth
