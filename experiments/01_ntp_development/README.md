@@ -15,6 +15,8 @@ rerun with the criteria below before proceeding to any auxiliary objective.
 - Eight Transformer blocks, eight heads, width 256, batch size 256.
 - The required confirmation rerun is fixed at `P=65,536` with the full 2 × 2
   grammar/model seed factorial in `configs/replication.json`.
+- The confirmation rerun samples a fresh training pool at the start of every
+  epoch from the same grammar; validation and test pools remain fixed.
 - `configs/regime_search.json` is retained for optional fresh artifacts only;
   the three-point `P` search is not part of the required decision.
 - Evaluation every 250 optimizer updates, including step zero.
@@ -202,7 +204,7 @@ Run from the repository root, on MPS when available:
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_data_size.py \
   --config experiments/01_ntp_development/configs/replication.json \
-  --output-dir runs/01_ntp_development/rerun
+  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates
 ```
 
 After the sweep finishes, diagnose every exact-step checkpoint for all four
@@ -210,44 +212,44 @@ confirmation runs:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-  --run-dir runs/01_ntp_development/rerun/grammar_0/model_0/P_65536 \
-  --output-dir runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/trajectory \
+  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536 \
+  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory \
   --controls
 
 PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-  --run-dir runs/01_ntp_development/rerun/grammar_0/model_1/P_65536 \
-  --output-dir runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/trajectory \
+  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536 \
+  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/trajectory \
   --controls
 
 PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-  --run-dir runs/01_ntp_development/rerun/grammar_1/model_0/P_65536 \
-  --output-dir runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/trajectory \
+  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536 \
+  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/trajectory \
   --controls
 
 PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-  --run-dir runs/01_ntp_development/rerun/grammar_1/model_1/P_65536 \
-  --output-dir runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/trajectory \
+  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536 \
+  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/trajectory \
   --controls
 
 python plot_trajectory.py \
-  --trajectory runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/trajectory/trajectory.json \
-  --metrics runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/metrics.json \
-  --output runs/01_ntp_development/rerun/grammar_0/model_0/P_65536/trajectory/trajectory.png
+  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory/trajectory.json \
+  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/metrics.json \
+  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory/trajectory.png
 
 python plot_trajectory.py \
-  --trajectory runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/trajectory/trajectory.json \
-  --metrics runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/metrics.json \
-  --output runs/01_ntp_development/rerun/grammar_0/model_1/P_65536/trajectory/trajectory.png
+  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/trajectory/trajectory.json \
+  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/metrics.json \
+  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_1/P_65536/trajectory/trajectory.png
 
 python plot_trajectory.py \
-  --trajectory runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/trajectory/trajectory.json \
-  --metrics runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/metrics.json \
-  --output runs/01_ntp_development/rerun/grammar_1/model_0/P_65536/trajectory/trajectory.png
+  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/trajectory/trajectory.json \
+  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/metrics.json \
+  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_0/P_65536/trajectory/trajectory.png
 
 python plot_trajectory.py \
-  --trajectory runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/trajectory/trajectory.json \
-  --metrics runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/metrics.json \
-  --output runs/01_ntp_development/rerun/grammar_1/model_1/P_65536/trajectory/trajectory.png
+  --trajectory experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/trajectory/trajectory.json \
+  --metrics experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/metrics.json \
+  --output experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_1/model_1/P_65536/trajectory/trajectory.png
 ```
 
 The trajectory plot includes validation NLL by prediction position and the
@@ -260,8 +262,7 @@ First compare the full rerun with the expectation in this README and record
 `go`, `no-go`, or `rerun baseline` in [RESULTS.md](RESULTS.md). Only an explicit
 `go` authorizes the next implementation stage.
 
-The completed confirmation rerun is recorded in [RESULTS.md](RESULTS.md) with
-a **go** decision. The authorized next stage is the fixed auxiliary target-depth
-screen in [Stage 02](../02_fixed_latent_targets/README.md); that stage must be
-read together with its results template before any broader auxiliary-loss or
-adaptive-target work proceeds.
+The completed confirmation rerun must be recorded in [RESULTS.md](RESULTS.md)
+before treating the baseline as evidence. The authorized next stage, if the
+rerun meets this gate, is the fixed auxiliary target-depth screen in
+[Stage 02](../02_fixed_latent_targets/README.md).

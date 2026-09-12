@@ -30,7 +30,7 @@ The executable matrix is:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python validate_implementation.py \
-  --output runs/implementation_validation/validation.json
+  --output experiments/00_validation/runs/implementation_validation/validation.json
 ```
 
 It writes independent data/objective checks, CPU replay results, and a

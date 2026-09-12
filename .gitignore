@@ -3,4 +3,7 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
-runs/
+# Local experiment artifacts. Keep the legacy root location ignored while
+# making the intended per-experiment location explicit.
+/runs/
+experiments/*/runs/

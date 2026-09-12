@@ -51,6 +51,12 @@ def _sample_split(num_data: int, rules: TensorDict, seed: int) -> RHMSplit:
     return RHMSplit(trees=trees, choices=choices)
 
 
+def sample_leaf_sequences(num_data: int, rules: TensorDict, seed: int) -> torch.Tensor:
+    """Sample a fresh pool of leaf sequences from fixed rules."""
+    trees = sample_trees(num_data, rules, seed=seed)
+    return trees[max(trees)]
+
+
 def build_rhm_bundle(
     *,
     v: int,

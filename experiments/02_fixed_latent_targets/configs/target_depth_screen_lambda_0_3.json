@@ -14,7 +14,8 @@
     "data": {
       "train_size": 65536,
       "val_size": 16384,
-      "test_size": 16384
+      "test_size": 16384,
+      "resample_train_each_epoch": true
     },
     "model": {
       "n_layer": 8,

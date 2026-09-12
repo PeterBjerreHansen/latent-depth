@@ -1,4 +1,11 @@
-from .dataset import LeafSequenceDataset, RHMBundle, RHMSplit, build_rhm_bundle, slice_rhm_split
+from .dataset import (
+    LeafSequenceDataset,
+    RHMBundle,
+    RHMSplit,
+    build_rhm_bundle,
+    sample_leaf_sequences,
+    slice_rhm_split,
+)
 from .interventions import (
     LatentLocation,
     latent_labels,
@@ -14,6 +21,7 @@ __all__ = [
     "RHMBundle",
     "RHMSplit",
     "build_rhm_bundle",
+    "sample_leaf_sequences",
     "slice_rhm_split",
     "LatentLocation",
     "latent_labels",

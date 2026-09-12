@@ -4,15 +4,17 @@ from pathlib import Path
 import pytest
 import torch
 
+import training
 from config import ExperimentConfig
 from diagnose import diagnose_checkpoint
-from rhm.dataset import LeafSequenceDataset, build_rhm_bundle
+from rhm.dataset import LeafSequenceDataset, build_rhm_bundle, sample_leaf_sequences
 from training import (
     build_model,
     evaluate_with_positions,
     load_model_from_checkpoint,
     load_training_state,
     make_loader,
+    _resampled_train_seed,
     save_checkpoint,
     train_model,
 )
@@ -459,6 +461,7 @@ def _assert_nested_equal(a, b):
 def test_exact_resume_matches_uninterrupted_training(tmp_path: Path):
     cfg = _tiny_cfg()
     cfg.data.train_size = 48
+    cfg.data.resample_train_each_epoch = True
     cfg.train.batch_size = 16
     cfg.train.max_updates = 4
     cfg.train.max_epochs = 4
@@ -492,6 +495,87 @@ def test_exact_resume_matches_uninterrupted_training(tmp_path: Path):
     _assert_nested_equal(full["optimizer"], resumed["optimizer"])
     _assert_nested_equal(full["loader_states"]["train_sampler"], resumed["loader_states"]["train_sampler"])
     assert full["global_step"] == resumed["global_step"] == 4
+
+
+def test_resampled_training_pools_are_seeded_per_epoch():
+    cfg = _tiny_cfg()
+    bundle = build_rhm_bundle(
+        v=cfg.rhm.v, n=cfg.rhm.n, m=cfg.rhm.m, s=cfg.rhm.s, L=cfg.rhm.L,
+        rule_seed=cfg.rhm.rule_seed, train_seed=cfg.rhm.train_seed,
+        val_seed=cfg.rhm.val_seed, test_seed=cfg.rhm.test_seed,
+        train_size=cfg.data.train_size, val_size=cfg.data.val_size,
+        test_size=cfg.data.test_size,
+    )
+    first = sample_leaf_sequences(
+        cfg.data.train_size,
+        bundle.rules,
+        seed=_resampled_train_seed(cfg.rhm.train_seed, 1),
+    )
+    second = sample_leaf_sequences(
+        cfg.data.train_size,
+        bundle.rules,
+        seed=_resampled_train_seed(cfg.rhm.train_seed, 2),
+    )
+    torch.testing.assert_close(first, bundle.train.leaves)
+    assert not torch.equal(first, second)
+
+
+def test_resampled_training_refreshes_between_epochs(monkeypatch, tmp_path: Path):
+    cfg = _tiny_cfg()
+    cfg.data.train_size = 16
+    cfg.train.batch_size = 8
+    cfg.train.max_updates = 5
+    cfg.train.max_epochs = 3
+    calls: list[int] = []
+    original = training.sample_leaf_sequences
+
+    def record_pool(num_data, rules, seed):
+        calls.append(seed)
+        return original(num_data, rules, seed)
+
+    monkeypatch.setattr(training, "sample_leaf_sequences", record_pool)
+    bundle = build_rhm_bundle(
+        v=cfg.rhm.v, n=cfg.rhm.n, m=cfg.rhm.m, s=cfg.rhm.s, L=cfg.rhm.L,
+        rule_seed=cfg.rhm.rule_seed, train_seed=cfg.rhm.train_seed,
+        val_seed=cfg.rhm.val_seed, test_seed=cfg.rhm.test_seed,
+        train_size=cfg.data.train_size, val_size=cfg.data.val_size,
+        test_size=cfg.data.test_size,
+    )
+    cfg.data.resample_train_each_epoch = True
+    train_model(
+        cfg,
+        LeafSequenceDataset(bundle.train.leaves),
+        LeafSequenceDataset(bundle.val.leaves),
+        LeafSequenceDataset(bundle.test.leaves),
+        output_dir=tmp_path,
+        rules=bundle.rules,
+        verbose=False,
+    )
+    assert calls == [
+        _resampled_train_seed(cfg.rhm.train_seed, 2),
+        _resampled_train_seed(cfg.rhm.train_seed, 3),
+    ]
+
+
+def test_resampled_training_requires_rules(tmp_path: Path):
+    cfg = _tiny_cfg()
+    cfg.data.resample_train_each_epoch = True
+    bundle = build_rhm_bundle(
+        v=cfg.rhm.v, n=cfg.rhm.n, m=cfg.rhm.m, s=cfg.rhm.s, L=cfg.rhm.L,
+        rule_seed=cfg.rhm.rule_seed, train_seed=cfg.rhm.train_seed,
+        val_seed=cfg.rhm.val_seed, test_seed=cfg.rhm.test_seed,
+        train_size=cfg.data.train_size, val_size=cfg.data.val_size,
+        test_size=cfg.data.test_size,
+    )
+    with pytest.raises(ValueError, match="requires RHM rules"):
+        train_model(
+            cfg,
+            LeafSequenceDataset(bundle.train.leaves),
+            LeafSequenceDataset(bundle.val.leaves),
+            LeafSequenceDataset(bundle.test.leaves),
+            output_dir=tmp_path,
+            verbose=False,
+        )
 
 
 def test_diagnostics_do_not_change_training_trajectory(tmp_path: Path):

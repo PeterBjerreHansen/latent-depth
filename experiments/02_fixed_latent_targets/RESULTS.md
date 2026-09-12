@@ -1,45 +1,51 @@
-# Stage 02 results: fixed auxiliary target depth
+# Stage 02 fixed auxiliary target-depth results
 
-**Status:** not yet run  
-**Decision:** pending the fixed-target screen
+**Status:** pending fresh rerun
+**Decision:** pending comparison with the pre-run expectation in [README.md](README.md)
 
-The runnable protocol is defined in [README.md](README.md), and the initial
-screen configuration is
-[`configs/target_depth_screen_lambda_0_1.json`](configs/target_depth_screen_lambda_0_1.json).
+The previous generated artifacts and result summary were removed. The current
+developmental screens use fresh training pools at every epoch from the same
+grammar, with fixed validation and test pools. The first screen is the
+complete L5 target-depth grid at three auxiliary weights; the extended screen
+uses L6 at `lambda=1.0`.
 
-## Screen summary
+## L5 target-depth screens
 
-Fill this table after running all ten paired arms and the Stage-01 trajectory
-diagnostics:
+| lambda | output |
+|---:|---|
+| 0.1 | `runs/target_depth_l5_lambda_0_1_5000_updates/` |
+| 0.3 | `runs/target_depth_l5_lambda_0_3_5000_updates/` |
+| 1.0 | `runs/target_depth_l5_lambda_1_0_5000_updates/` |
 
-| fixed target | H2 onset `tau_2` | H3 onset `tau_3` | best validation CE | note |
-|---|---:|---:|---:|---|
-| NTP | | | | |
-| embedding (`j=0`) | | | | |
-| `j=1` | | | | |
-| `j=2` | | | | |
-| `j=3` | | | | |
-| `j=4` | | | | |
-| `j=5` | | | | |
-| `j=6` | | | | |
-| `j=7` | | | | |
-| `j=8` | | | | |
+For each screen, report NTP and targets `j=0,...,8` using same-layer A+C
+acquisition, layerwise onset matrices, validation CE cost versus NTP, and the
+raw intervention contrast. Pending summary:
 
-The report should also record the NTP, auxiliary, and total training-loss
-curves so an apparent acceleration can be distinguished from globally damaged
-language-model optimization. Apply the README's pre-declared 500-update and
-`0.01` validation-CE margins without changing them after seeing the results.
+| lambda | target | H2 onset | H3 onset | best validation CE | CE cost vs NTP |
+|---:|---|---:|---:|---:|---:|
+| 0.1 | NTP, `j=0,...,8` | pending | pending | pending | pending |
+| 0.3 | NTP, `j=0,...,8` | pending | pending | pending | pending |
+| 1.0 | NTP, `j=0,...,8` | pending | pending | pending | pending |
 
-## Decision after the screen
+## Extended L6 screen
 
-Record one of:
+Configuration:
+[`configs/target_depth_screen_l6_lambda_1_0.json`](configs/target_depth_screen_l6_lambda_1_0.json)
 
-- **replicate fixed targets**: at least one auxiliary target advances H2 or H3
-  by at least one checkpoint without exceeding the `0.01` validation-CE cost;
-- **adjust lambda once**: all target depths are uniformly too weak or uniformly
-  harmful, motivating the pre-declared `0.3` or `0.03` follow-up;
-- **negative fixed-target result**: after the one justified weight adjustment,
-  no target improves the developmental transitions.
+Output: `runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/`
 
-Do not implement adaptive switching from this screen alone. Replicate only the
-scientifically competitive fixed targets first.
+| arm | H2 onset | H3 onset | H4 onset | best validation CE | CE cost vs NTP |
+|---|---:|---:|---:|---:|---:|
+| NTP | pending | pending | pending | pending | baseline |
+| `target_0` | pending | pending | pending | pending | pending |
+| `target_1` | pending | pending | pending | pending | pending |
+| `target_2` | pending | pending | pending | pending | pending |
+| `target_3` | pending | pending | pending | pending | pending |
+| `target_4` | pending | pending | pending | pending | pending |
+| `target_5` | pending | pending | pending | pending | pending |
+| `target_6` | pending | pending | pending | pending | pending |
+| `target_7` | pending | pending | pending | pending | pending |
+| `target_8` | pending | pending | pending | pending | pending |
+
+The final report must compare the observed target-depth pattern with the
+pre-declared expectations before any adaptive target schedule is considered.

@@ -1,10 +1,7 @@
 # Stage 02: fixed auxiliary target depth
 
-Stage 01 established a reproducible developmental clock: in the canonical
-`P=65,536` regime, the first robust same-layer accessibility + synonym-
-invariance signal appears for H2 around residual stream `j=2`, and H3 appears
-later around `j=3`, while held-out NTP is still improving. Stage 02 asks the
-next causal question:
+Stage 01 supplies the baseline developmental clock for the canonical
+`P=65,536` regime. Stage 02 asks the next causal question:
 
 > Does predicting a fixed future Transformer residual stream accelerate those
 > hierarchy transitions, and does the useful target depth differ between H2
@@ -102,6 +99,22 @@ or authorize target selection from validation CE alone.
 Validation checkpoint selection remains based **only** on held-out NTP
 cross-entropy. `running_aux_loss` and `running_total_loss` are training
 observables, not selection criteria.
+
+## Training-data schedule
+
+The default configuration uses one fixed finite training pool. The developmental
+screens below explicitly set `data.resample_train_each_epoch` to `true`. Their
+validation and test pools remain fixed, while the training pool is sampled
+afresh from the same grammar before each epoch. Epoch 1 uses the configured
+`rhm.train_seed`; epoch `e` uses the deterministic seed
+`train_seed + 1,000,003 * (e - 1)` modulo `2^63 - 1`. This gives every arm in
+the paired sweep the same epoch-specific examples without requiring duplicate
+checking. A resumed run regenerates the pool for the checkpoint's current
+epoch while preserving the checkpoint's sampler position.
+
+At 65,536 examples and batch size 256, 10,000 updates span about 39 fresh
+training pools. The resulting training metrics are evaluated on the current
+epoch's pool, while model selection and the final test remain held out.
 
 ## Pre-run expectations
 
@@ -201,13 +214,13 @@ From the repository root:
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
   --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_0_1.json \
-  --output-dir runs/02_fixed_latent_targets/screen_lambda_0_1
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_1_5000_updates
 ```
 
 The output layout is intentionally explicit:
 
 ```text
-runs/02_fixed_latent_targets/screen_lambda_0_1/
+experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_1_5000_updates/
 ├── metrics.jsonl
 ├── sweep_config.json
 └── grammar_0/
@@ -229,6 +242,20 @@ Each arm stores its resolved config, ordinary metrics, best/final checkpoints,
 and exact-step snapshots. `--resume` skips completed arms only when the saved
 sweep configuration exactly matches the requested sweep.
 
+### Checkpoint storage
+
+Set `train.save_checkpoints` to `false` for a metrics-only sweep. The sweep
+still writes `metrics.jsonl`, each arm's `metrics.json`, resolved configs, and
+the sweep manifest, but it does not write `best.pt`, `last.pt`, or exact-step
+model files. Completed arms can still be skipped with `--resume`; an
+interrupted arm must be restarted because there is no state checkpoint.
+
+Keep `train.save_checkpoints: true` for this Stage-02 target-depth study until
+the trajectory diagnostics are complete. The offline trajectory pipeline reads
+the exact-step snapshots to measure layerwise H1--H5 acquisition. After those
+diagnostics and the report are finished, the step snapshots can be removed if
+the retained metrics and diagnostic JSON are sufficient.
+
 ## Run the weight-sensitivity screens
 
 Run the same full target-depth grid at the two larger fixed auxiliary weights:
@@ -236,11 +263,11 @@ Run the same full target-depth grid at the two larger fixed auxiliary weights:
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
   --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_0_3.json \
-  --output-dir runs/02_fixed_latent_targets/screen_lambda_0_3
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_5000_updates
 
 PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
   --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_1_0.json \
-  --output-dir runs/02_fixed_latent_targets/screen_lambda_1_0
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_1_0_5000_updates
 ```
 
 ## Diagnose the developmental trajectories
@@ -250,20 +277,20 @@ used 1,024 validation examples and 300 probe steps, so the first Stage-02
 comparison should use the same diagnostic settings:
 
 ```bash
-for screen in screen_lambda_0_1 screen_lambda_0_3 screen_lambda_1_0; do
+for screen in target_depth_l5_lambda_0_1_5000_updates target_depth_l5_lambda_0_3_5000_updates target_depth_l5_lambda_1_0_5000_updates; do
   for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
     PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-      --run-dir runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm \
-      --output-dir runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/trajectory \
+      --run-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm \
+      --output-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory \
       --device mps \
       --num-sequences 1024 \
       --probe-steps 300 \
       --controls
 
     python plot_trajectory.py \
-      --trajectory runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
-      --metrics runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/metrics.json \
-      --output runs/02_fixed_latent_targets/$screen/grammar_0/model_0/$arm/trajectory/trajectory.png
+      --trajectory experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.json \
+      --metrics experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/metrics.json \
+      --output experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory/trajectory.png
   done
 done
 ```
@@ -296,12 +323,68 @@ for adaptive target selection but is still a useful positive auxiliary result.
 If no target beats NTP, first assess the common auxiliary weight before adding
 more complicated machinery.
 
+## Next run: extended-hierarchy target-depth sweep
+
+The initial `L=5` screen did not acquire H4 by update 5,000, so it cannot
+decide whether late targets help later hierarchy levels. The next Stage-02 run
+therefore uses `L=6`, `lambda=1.0`, and 10,000 updates. It sweeps the complete
+target grid and includes an NTP arm in the same sweep. The NTP arm is listed
+first and is the paired baseline for every target depth. This screen uses a
+fresh training pool at every epoch; validation and test pools stay fixed.
+
+Use [`configs/target_depth_screen_l6_lambda_1_0.json`](configs/target_depth_screen_l6_lambda_1_0.json)
+and write the result under
+`runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/`:
+
+```bash
+PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
+  --config experiments/02_fixed_latent_targets/configs/target_depth_screen_l6_lambda_1_0.json \
+  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train
+```
+
+The run keeps the Stage-02 model, seeds, data sizes, optimizer, and MPS
+settings, but uses `L=6` and 10,000 updates. The sequence has 64 tokens and
+63 predicted tokens, so each arm processes about 16,128 predicted tokens per
+update and 161.3 million over the full budget. Report onset in both updates
+and predicted tokens.
+
+The arms are exactly:
+
+```text
+NTP, target_0, target_1, ..., target_8
+```
+
+Run the existing trajectory diagnostics for every arm after training:
+
+```bash
+for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
+  PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
+    --run-dir experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm \
+    --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/trajectory \
+    --device mps \
+    --num-sequences 1024 \
+    --probe-steps 300 \
+    --controls
+
+  python plot_trajectory.py \
+    --trajectory experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/trajectory/trajectory.json \
+    --metrics experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/metrics.json \
+    --output experiments/02_fixed_latent_targets/runs/target_depth_l6_lambda_1_0_10000_updates_resampled_train/grammar_0/model_0/$arm/trajectory/trajectory.png
+done
+```
+
+Use the same Stage-02 acquisition rule. H4 should have a realistic chance to
+appear, while H5 may remain censored. If H4 remains censored, the sweep can
+still describe effects on H2/H3, but it cannot test late-level specialization
+directly. Do not add another auxiliary weight or adaptive target schedule
+until this complete `L=6` result has been reviewed.
+
 ## What happens after the screen
 
-Do not replicate all ten arms automatically. Select NTP plus only the target
-layers that are scientifically competitive (for example, a shallow H2 winner,
-a deeper H3 winner, and perhaps one intermediate control), then run that subset
-on the same 2 x 2 grammar/model-seed factorial used in Stage 01.
+The `L=6` run intentionally includes all ten arms because the complete
+target-depth pattern is the current question. After it completes, select NTP
+plus only the scientifically competitive target layers for replication on the
+same 2 x 2 grammar/model-seed factorial used in Stage 01.
 
 Only after a replicated fixed-target comparison shows that the locally useful
 target changes with developmental stage should the repository add switching or

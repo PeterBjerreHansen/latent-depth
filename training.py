@@ -17,7 +17,7 @@ from auxiliary import NextLatentPredictor, build_auxiliary_predictor, next_laten
 from config import ExperimentConfig
 from diagnostics import run_latent_diagnostics
 from nanogpt import GPT, GPTConfig
-from rhm.dataset import RHMSplit
+from rhm.dataset import LeafSequenceDataset, RHMSplit, sample_leaf_sequences
 from rhm.random_hierarchy_model import TensorDict
 from rhm.theory import loss_upper_bounds
 
@@ -59,6 +59,13 @@ def _mps_rng_state() -> Optional[torch.Tensor]:
 
 def input_block_size(cfg: ExperimentConfig) -> int:
     return cfg.rhm.s**cfg.rhm.L
+
+
+def _resampled_train_seed(base_seed: int, epoch: int) -> int:
+    """Return the deterministic local RNG seed for a generated train pool."""
+    if epoch <= 0:
+        raise ValueError("epoch must be positive")
+    return int((int(base_seed) + 1_000_003 * (epoch - 1)) % (2**63 - 1))
 
 
 def build_model(cfg: ExperimentConfig) -> GPT:
@@ -443,6 +450,10 @@ def train_model(
     The optional Stage-02 auxiliary objective affects training only.  Model
     selection, validation metrics, test metrics, and representation diagnostics
     remain defined by the causal NTP backbone exactly as in Stage 01.
+
+    When ``cfg.data.resample_train_each_epoch`` is enabled, ``rules`` must be
+    supplied and a fresh train pool is sampled deterministically before each
+    new epoch. Validation and test datasets remain fixed.
     """
     cfg.validate()
     if len(train_dataset) != cfg.data.train_size:
@@ -451,6 +462,8 @@ def train_model(
         raise ValueError("validation/test dataset sizes do not match configuration")
     if cfg.diagnostics.enabled and (diagnostic_split is None or rules is None):
         raise ValueError("enabled diagnostics require diagnostic_split and RHM rules")
+    if cfg.data.resample_train_each_epoch and rules is None:
+        raise ValueError("resampling the training pool requires RHM rules")
 
     device = resolve_device(cfg.train.device)
     out = Path(output_dir) if output_dir is not None else None
@@ -529,7 +542,19 @@ def train_model(
         saved_trainer_state = checkpoint.get("trainer_state", {})
         sampler_position = train_sampler.position
         checkpoint_epoch = int(checkpoint["epoch"])
-        start_epoch = checkpoint_epoch if sampler_position < len(train_dataset) else checkpoint_epoch + 1
+        start_epoch = (
+            max(checkpoint_epoch, 1)
+            if sampler_position < len(train_dataset)
+            else checkpoint_epoch + 1
+        )
+        if cfg.data.resample_train_each_epoch:
+            train_dataset = LeafSequenceDataset(
+                sample_leaf_sequences(
+                    len(train_dataset),
+                    rules,
+                    seed=_resampled_train_seed(cfg.rhm.train_seed, start_epoch),
+                )
+            )
         global_step = int(checkpoint["global_step"])
         best_val = float(saved_trainer_state.get("best_val", float("inf")))
         best_epoch = int(saved_trainer_state.get("best_epoch", 0))
@@ -582,6 +607,45 @@ def train_model(
         restore_rng_state(resume_rng)
 
     warmup_updates = int(math.ceil(cfg.optim.warmup_epochs * updates_per_epoch))
+
+    def refresh_train_pool(next_epoch: int) -> None:
+        """Replace the finite training pool before the next epoch."""
+        nonlocal train_dataset, train_loader, train_eval_loader, train_sampler
+        if (
+            not cfg.data.resample_train_each_epoch
+            or next_epoch > cfg.train.max_epochs
+        ):
+            return
+        if rules is None:
+            raise RuntimeError("resampling the training pool requires RHM rules")
+        train_dataset = LeafSequenceDataset(
+            sample_leaf_sequences(
+                cfg.data.train_size,
+                rules,
+                seed=_resampled_train_seed(cfg.rhm.train_seed, next_epoch),
+            )
+        )
+        train_sampler = StatefulRandomSampler(
+            len(train_dataset), train_sampler_generator
+        )
+        train_loader = make_loader(
+            train_dataset,
+            batch_size=cfg.train.batch_size,
+            shuffle=False,
+            num_workers=cfg.train.num_workers,
+            seed=cfg.model_seed + 17,
+            device=device,
+            generator=train_loader_generator,
+            sampler=train_sampler,
+        )
+        train_eval_loader = make_loader(
+            train_dataset,
+            batch_size=cfg.train.batch_size,
+            shuffle=False,
+            num_workers=cfg.train.num_workers,
+            seed=0,
+            device=device,
+        )
 
     def trainer_state() -> dict[str, Any]:
         return {
@@ -837,6 +901,7 @@ def train_model(
                 )
             if stop_training:
                 break
+            refresh_train_pool(epoch + 1)
             continue
 
         running_train_ce = running_ntp / max(seen, 1)
@@ -855,6 +920,7 @@ def train_model(
 
         if stop_training:
             break
+        refresh_train_pool(epoch + 1)
 
     if best_state is None:
         raise RuntimeError("no validation evaluation was performed")

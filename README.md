@@ -35,9 +35,10 @@ The reusable seams are deliberately small:
 - [Stage 01: NTP developmental baseline](experiments/01_ntp_development/README.md)
 - [Stage 02: fixed auxiliary target depth](experiments/02_fixed_latent_targets/README.md)
 
-Run outputs belong under `runs/` and are intentionally not tracked. Each run
-keeps the resolved config, metrics, and checkpoints needed to inspect or resume
-that run. Historical runs are not part of the runnable core protocol.
+Run outputs belong in the local `runs/` directory of each experiment and are
+intentionally not tracked. Each run keeps the resolved config, metrics, and
+checkpoints needed to inspect or resume that run. Historical runs are not part
+of the runnable core protocol.
 
 ## Setup and tests
 

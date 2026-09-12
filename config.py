@@ -35,6 +35,7 @@ class DataConfig:
     train_size: int = 131072
     val_size: int = 32768
     test_size: int = 32768
+    resample_train_each_epoch: bool = False
 
     def validate(self) -> None:
         if min(self.train_size, self.val_size, self.test_size) <= 0:
@@ -167,6 +168,8 @@ class TrainConfig:
     device: str = "auto"
     deterministic: bool = True
     deterministic_strict: bool = False
+    # Set false for metrics-only runs. This disables best, last, and exact-step
+    # model-state files while preserving the training metrics output.
     save_checkpoints: bool = True
     checkpoint_every_evals: Optional[int] = None
     checkpoint_every_updates: Optional[int] = None

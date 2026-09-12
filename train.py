@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Train one nanoGPT-style causal model on a fixed finite RHM dataset."""
+"""Train one nanoGPT-style causal model on an RHM dataset."""
 
 from __future__ import annotations
 
