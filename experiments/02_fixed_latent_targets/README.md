@@ -59,6 +59,15 @@ retains the full layerwise curves and events. The 50%, 75%, and 90% probe
 milestones use the same two-checkpoint persistence rule and are reported to
 show threshold dependence.
 
+In addition to each level's absolute onset `tau_l` and arm-minus-NTP onset
+difference, the comparison reports every consecutive transition present in the
+diagnostics. For `l-1 -> l`, it records the arm interval
+`tau_l - tau_l-1`, the corresponding NTP interval, and the difference between
+those intervals. This separates acceleration of an earlier level from a
+specific shortening or lengthening of the transition itself. A transition is
+unavailable if either endpoint is not persistently observed; no censoring bound
+is inferred.
+
 Synonym clustering and the latent-replacement contrast `Q` are explanatory
 diagnostics. Shuffled-label probes are optional controls. Neither clustering,
 `Q`, nor a control margin is an acquisition hurdle. If an event is not observed
@@ -116,10 +125,12 @@ python plot_trajectory.py \
 ```
 
 The comparison contains absolute accessibility times, exact paired differences
-when available, matched-update validation CE, exposure accounting, and the
-targets present in each group. The combined timing figure shows absolute times
-and paired differences; there is no duplicate delta figure. Layerwise curves
-are plotted in observer-layer panels for every available arm, so a
+when available, adjacent-level transition intervals and their NTP-relative
+differences, matched-update validation CE, exposure accounting, and the targets
+present in each group. `acquisition_times.png` shows absolute level times and
+level-time differences; `transition_intervals.png` shows the absolute
+`l-1 -> l` intervals and their differences versus NTP. Layerwise curves are
+plotted in observer-layer panels for every available arm, so a
 not-confirmed NTP event cannot hide auxiliary movement at another layer.
 
 The controls are optional; when requested, `--controls` adds the trained-backbone
@@ -142,20 +153,24 @@ git add -f \
   "$run"/analysis/comparison.json \
   "$run"/analysis/validation_ce_by_step.csv \
   "$run"/analysis/validation_ce_delta_vs_ntp.csv \
+  "$run"/analysis/transition_intervals.csv \
   "$run"/analysis/plots/*.png
 ```
 
 This records the resolved configs, training metrics, consolidated trajectories,
-comparison tables, and plots. It intentionally excludes all model checkpoints,
-optimizer states, and redundant per-checkpoint JSON files.
+comparison tables, transition diagnostics, and plots. It intentionally excludes
+all model checkpoints, optimizer states, and redundant per-checkpoint JSON
+files.
 
 
 ## Interpretation and follow-up
 
 The main comparison is the ranking of fixed target depths at the same exposure.
 A target that advances H2 but not H3, or one that advances H3 without delaying
-H2, would support a depth-specific developmental effect. A common winner or
-uniform acceleration is still a useful fixed-target result but gives weaker
+H2, would support a depth-specific developmental effect. The adjacent-level
+intervals add an important check: an earlier H3 can simply inherit an earlier
+H2, or it can reflect a genuinely shorter H2-to-H3 transition. A common winner
+or uniform acceleration is still a useful fixed-target result but gives weaker
 motivation for adaptive switching. A probe milestone without persistent
 threshold accessibility is reported as a probe result, not as an acquisition
 claim.

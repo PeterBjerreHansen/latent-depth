@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "screen_dir": "experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates",
   "primary_levels": [
     2,
@@ -12,6 +12,17 @@
       "primary_levels": [
         2,
         3
+      ],
+      "diagnostic_levels": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "transition_pairs": [
+        "1->2",
+        "2->3",
+        "3->4"
       ],
       "checkpoint_steps": [
         0,
@@ -19929,11 +19940,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": 0,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 2000,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 2000
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            }
           }
         },
         {
@@ -20007,11 +20062,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -750,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1500,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1500
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1000
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1500
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -500
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            }
           }
         },
         {
@@ -20085,11 +20184,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -500,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1500,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1500
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1500
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -500
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            }
           }
         },
         {
@@ -20163,11 +20306,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -250,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1750,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1750
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            }
           }
         },
         {
@@ -20241,11 +20428,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -250,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1750,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1750
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            }
           }
         },
         {
@@ -20319,11 +20550,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -250,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1750,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1750
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            }
           }
         },
         {
@@ -20397,11 +20672,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -250,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1750,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1750
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            }
           }
         },
         {
@@ -20475,11 +20794,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -500,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1500,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1500
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1500
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -500
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            }
           }
         },
         {
@@ -20553,11 +20916,55 @@
           "tau_3_through_step": null,
           "delta_tau_3": -250,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1750,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1750
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            }
           }
         },
         {
@@ -20631,12 +21038,478 @@
           "tau_3_through_step": null,
           "delta_tau_3": -250,
           "delta_tau_3_status": "observed",
-          "tau_3_minus_tau_2": 1750,
-          "tau_3_minus_tau_2_status": "observed",
-          "interval": {
-            "status": "observed",
-            "value": 1750
+          "transitions": {
+            "1->2": {
+              "from_level": 1,
+              "to_level": 2,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 1250
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": 0
+              }
+            },
+            "2->3": {
+              "from_level": 2,
+              "to_level": 3,
+              "tau_interval": {
+                "status": "observed",
+                "value": 1750
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 2000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -250
+              }
+            },
+            "3->4": {
+              "from_level": 3,
+              "to_level": 4,
+              "tau_interval": {
+                "status": "observed",
+                "value": 2500
+              },
+              "ntp_tau_interval": {
+                "status": "observed",
+                "value": 3000
+              },
+              "delta_tau_interval_vs_ntp": {
+                "status": "observed",
+                "value": -500
+              }
+            }
           }
+        }
+      ],
+      "transition_intervals": [
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "ntp",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "ntp",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 2000,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "ntp",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 3000,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_0",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1000,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_0",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1500,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -500,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_0",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 2750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_1",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_1",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1500,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -500,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_1",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 3000,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_2",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_2",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_2",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 3000,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_3",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_3",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_3",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 2750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_4",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_4",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_4",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 2750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_5",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_5",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_5",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 2750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_6",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_6",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1500,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -500,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_6",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 2750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_7",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_7",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_7",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 2750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_8",
+          "transition": "1->2",
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": 1250,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 1250,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": 0,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_8",
+          "transition": "2->3",
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": 1750,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 2000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -250,
+          "delta_tau_interval_vs_ntp_status": "observed"
+        },
+        {
+          "grammar_seed": 0,
+          "model_seed": 0,
+          "target": "target_8",
+          "transition": "3->4",
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": 2500,
+          "tau_interval_status": "observed",
+          "ntp_tau_interval": 3000,
+          "ntp_tau_interval_status": "observed",
+          "delta_tau_interval_vs_ntp": -500,
+          "delta_tau_interval_vs_ntp_status": "observed"
         }
       ],
       "validation_ce_delta_vs_ntp": [
@@ -22490,6 +23363,428 @@
       "target_6": -0.0008165289614079363,
       "target_7": -0.0011395934139259989,
       "target_8": -0.001156230179232498
+    }
+  ],
+  "transition_intervals": [
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "ntp",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "ntp",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 2000,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "ntp",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 3000,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_0",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1000,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_0",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1500,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -500,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_0",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 2750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_1",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_1",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1500,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -500,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_1",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 3000,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_2",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_2",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_2",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 3000,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_3",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_3",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_3",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 2750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_4",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_4",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_4",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 2750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_5",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_5",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_5",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 2750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_6",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_6",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1500,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -500,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_6",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 2750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_7",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_7",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_7",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 2750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_8",
+      "transition": "1->2",
+      "from_level": 1,
+      "to_level": 2,
+      "tau_interval": 1250,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 1250,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": 0,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_8",
+      "transition": "2->3",
+      "from_level": 2,
+      "to_level": 3,
+      "tau_interval": 1750,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 2000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -250,
+      "delta_tau_interval_vs_ntp_status": "observed"
+    },
+    {
+      "grammar_seed": 0,
+      "model_seed": 0,
+      "target": "target_8",
+      "transition": "3->4",
+      "from_level": 3,
+      "to_level": 4,
+      "tau_interval": 2500,
+      "tau_interval_status": "observed",
+      "ntp_tau_interval": 3000,
+      "ntp_tau_interval_status": "observed",
+      "delta_tau_interval_vs_ntp": -500,
+      "delta_tau_interval_vs_ntp_status": "observed"
     }
   ],
   "rule": {

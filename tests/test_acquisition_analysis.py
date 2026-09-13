@@ -268,16 +268,22 @@ def _paired_arms(ntp_summary, target_summary, steps=(0, 50, 100, 150, 200, 250),
 def test_target_depth_deltas_and_interval_keep_absolute_times():
     steps = (0, 50, 100, 150, 200, 250)
     ntp_summary = summarize_trajectory_data(_with_onsets(steps, h2=100, h3=200), RULE)
-    target_summary = summarize_trajectory_data(_with_onsets(steps, h2=50, h3=150), RULE)
+    target_summary = summarize_trajectory_data(_with_onsets(steps, h2=50, h3=200), RULE)
     result = summarize_target_depth_data(
         _paired_arms(ntp_summary, target_summary, target_best=0.99), primary_levels=[2, 3]
     )
     target = next(row for row in result["groups"][0]["primary"] if row["target"] == "target_2")
     assert target["tau_2"] == 50
     assert target["delta_tau_2"] == -50
-    assert target["tau_3"] == 150
-    assert target["delta_tau_3"] == -50
-    assert target["tau_3_minus_tau_2"] == 100
+    assert target["tau_3"] == 200
+    assert target["delta_tau_3"] == 0
+    assert target["transitions"]["2->3"] == {
+        "from_level": 2,
+        "to_level": 3,
+        "tau_interval": {"status": "observed", "value": 150},
+        "ntp_tau_interval": {"status": "observed", "value": 100},
+        "delta_tau_interval_vs_ntp": {"status": "observed", "value": 50},
+    }
     assert target["best_val_ce_delta_vs_ntp"] == pytest.approx(-0.01)
     assert target["levels"]["2"]["matched_validation_ce"]["delta_vs_ntp"] == pytest.approx(-0.01)
     assert len(result["validation_ce_by_step"]) == len(steps)
@@ -297,7 +303,13 @@ def test_not_confirmed_paired_comparisons_are_unavailable_without_bounds():
     assert target["delta_tau_3"] is None
     assert target["delta_tau_3_status"] == "unavailable"
     assert "delta_tau_3_bound" not in target
-    assert target["interval"] == {"status": "unavailable"}
+    assert target["transitions"]["2->3"] == {
+        "from_level": 2,
+        "to_level": 3,
+        "tau_interval": {"status": "unavailable"},
+        "ntp_tau_interval": {"status": "observed", "value": 100},
+        "delta_tau_interval_vs_ntp": {"status": "unavailable"},
+    }
 
 
 def test_sweep_refuses_mismatched_evaluation_schedules():
@@ -339,7 +351,7 @@ def test_comparison_plotter_writes_one_combined_timing_artifact(tmp_path: Path):
     for name in (
         "acquisition_times.png", "validation_ce.png", "h2_accessibility.png",
         "h2_clustering.png", "h2_q.png", "h3_accessibility.png",
-        "h3_clustering.png", "h3_q.png",
+        "h3_clustering.png", "h3_q.png", "transition_intervals.png",
     ):
         assert (tmp_path / name).exists()
     assert not (tmp_path / "delta_tau.png").exists()
@@ -381,6 +393,12 @@ def test_target_depth_cli_reads_raw_trajectories_and_writes_compact_comparison(t
     assert all("summary" not in arm for arm in disk["groups"][0]["arms"])
     csv_text = (tmp_path / "analysis" / "validation_ce_by_step.csv").read_text()
     assert "grammar_seed,model_seed,step,ntp,target_2" in csv_text.splitlines()[0]
+    transition_csv = (tmp_path / "analysis" / "transition_intervals.csv").read_text()
+    assert transition_csv.splitlines()[0] == (
+        "grammar_seed,model_seed,target,transition,from_level,to_level,"
+        "tau_interval,tau_interval_status,ntp_tau_interval,ntp_tau_interval_status,"
+        "delta_tau_interval_vs_ntp,delta_tau_interval_vs_ntp_status"
+    )
     plot_target_depth_comparison(
         tmp_path / "analysis" / "comparison.json", tmp_path / "plots"
     )

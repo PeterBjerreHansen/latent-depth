@@ -12,7 +12,7 @@ from typing import Any, Mapping
 
 from summarize_trajectory import load_acquisition_rule, summarize_trajectory_data
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def _load_json(path: Path, description: str) -> dict[str, Any]:
@@ -183,6 +183,18 @@ def _difference(
     return {"status": "unavailable"}
 
 
+def _difference_values(
+    left: Mapping[str, Any], right: Mapping[str, Any]
+) -> dict[str, Any]:
+    """Describe the difference between two already-computed differences."""
+    if left["status"] == "observed" and right["status"] == "observed":
+        return {
+            "status": "observed",
+            "value": int(left["value"]) - int(right["value"]),
+        }
+    return {"status": "unavailable"}
+
+
 def _direct_difference_value(comparison: Mapping[str, Any]) -> int | None:
     return int(comparison["value"]) if comparison["status"] == "observed" else None
 
@@ -211,11 +223,51 @@ def _matched_ce(
     }
 
 
-def _primary_row(
-    arm: Mapping[str, Any], ntp: Mapping[str, Any], primary_levels: list[int]
+def _transition_key(lower: int, upper: int) -> str:
+    return f"{lower}->{upper}"
+
+
+def _adjacent_level_pairs(levels: list[int]) -> list[tuple[int, int]]:
+    """Return only numeric l-1 -> l transitions present in the trajectory."""
+    return [
+        (lower, upper)
+        for lower, upper in zip(levels, levels[1:])
+        if upper == lower + 1
+    ]
+
+
+def _transition_comparison(
+    events: Mapping[int, Mapping[str, Any]],
+    ntp_events: Mapping[int, Mapping[str, Any]],
+    lower: int,
+    upper: int,
 ) -> dict[str, Any]:
-    events = {level: _event(arm["summary"], level) for level in primary_levels}
-    ntp_events = {level: _event(ntp["summary"], level) for level in primary_levels}
+    """Compare one arm's l-1 -> l interval with the NTP interval."""
+    interval = _difference(events[upper], events[lower])
+    ntp_interval = _difference(ntp_events[upper], ntp_events[lower])
+    delta_vs_ntp = _difference_values(interval, ntp_interval)
+    return {
+        "from_level": lower,
+        "to_level": upper,
+        "tau_interval": interval,
+        "ntp_tau_interval": ntp_interval,
+        "delta_tau_interval_vs_ntp": delta_vs_ntp,
+    }
+
+
+def _primary_row(
+    arm: Mapping[str, Any],
+    ntp: Mapping[str, Any],
+    primary_levels: list[int],
+    transition_pairs: list[tuple[int, int]],
+) -> dict[str, Any]:
+    event_levels = {
+        level
+        for pair in transition_pairs
+        for level in pair
+    } | set(primary_levels)
+    events = {level: _event(arm["summary"], level) for level in event_levels}
+    ntp_events = {level: _event(ntp["summary"], level) for level in event_levels}
     row: dict[str, Any] = {
         "target": arm["arm"],
         "target_layer": arm["target_layer"],
@@ -243,11 +295,12 @@ def _primary_row(
             "matched_validation_ce": _matched_ce(arm, ntp, events[level]),
         }
 
-    if 2 in events and 3 in events:
-        interval = _difference(events[3], events[2])
-        row["tau_3_minus_tau_2"] = _direct_difference_value(interval)
-        row["tau_3_minus_tau_2_status"] = interval["status"]
-        row["interval"] = interval
+    row["transitions"] = {
+        _transition_key(lower, upper): _transition_comparison(
+            events, ntp_events, lower, upper
+        )
+        for lower, upper in transition_pairs
+    }
     return row
 
 
@@ -273,6 +326,35 @@ def _validation_rows(arms: list[Mapping[str, Any]], key: tuple[int, int]) -> tup
     return rows, delta_rows
 
 
+def _transition_rows(
+    primary_rows: list[Mapping[str, Any]], key: tuple[int, int]
+) -> list[dict[str, Any]]:
+    """Flatten per-arm transition comparisons for the analysis CSV."""
+    rows: list[dict[str, Any]] = []
+    for primary in primary_rows:
+        for transition_key, transition in primary["transitions"].items():
+            tau_interval = transition["tau_interval"]
+            ntp_tau_interval = transition["ntp_tau_interval"]
+            delta_vs_ntp = transition["delta_tau_interval_vs_ntp"]
+            rows.append(
+                {
+                    "grammar_seed": key[0],
+                    "model_seed": key[1],
+                    "target": primary["target"],
+                    "transition": transition_key,
+                    "from_level": transition["from_level"],
+                    "to_level": transition["to_level"],
+                    "tau_interval": _direct_difference_value(tau_interval),
+                    "tau_interval_status": tau_interval["status"],
+                    "ntp_tau_interval": _direct_difference_value(ntp_tau_interval),
+                    "ntp_tau_interval_status": ntp_tau_interval["status"],
+                    "delta_tau_interval_vs_ntp": _direct_difference_value(delta_vs_ntp),
+                    "delta_tau_interval_vs_ntp_status": delta_vs_ntp["status"],
+                }
+            )
+    return rows
+
+
 def summarize_target_depth_data(
     arms: list[dict[str, Any]],
     *,
@@ -289,6 +371,7 @@ def summarize_target_depth_data(
     output_groups: list[dict[str, Any]] = []
     all_validation_rows: list[dict[str, Any]] = []
     all_delta_rows: list[dict[str, Any]] = []
+    all_transition_rows: list[dict[str, Any]] = []
     requested_levels = list(primary_levels) if primary_levels is not None else None
     selected_levels: list[int] | None = requested_levels
     chosen_level_sets: list[tuple[int, ...]] = []
@@ -309,16 +392,27 @@ def summarize_target_depth_data(
                 f"paired group {_group_label(key)} has no requested hierarchy level(s): {missing}"
             )
         chosen_level_sets.append(tuple(group_levels))
+        transition_pairs = _adjacent_level_pairs(available_levels)
         ntp = next(arm for arm in group_arms if arm["arm"] == "ntp")
-        primary = [_primary_row(arm, ntp, group_levels) for arm in group_arms]
+        primary = [
+            _primary_row(arm, ntp, group_levels, transition_pairs)
+            for arm in group_arms
+        ]
+        transition_rows = _transition_rows(primary, key)
         validation_rows, delta_rows = _validation_rows(group_arms, key)
         all_validation_rows.extend(validation_rows)
         all_delta_rows.extend(delta_rows)
+        all_transition_rows.extend(transition_rows)
         output_groups.append(
             {
                 "grammar_seed": key[0],
                 "model_seed": key[1],
                 "primary_levels": group_levels,
+                "diagnostic_levels": available_levels,
+                "transition_pairs": [
+                    _transition_key(lower, upper)
+                    for lower, upper in transition_pairs
+                ],
                 "checkpoint_steps": group_arms[0]["summary"]["checkpoint_steps"],
                 "targets_present": [arm["arm"] for arm in group_arms],
                 "protocol": {
@@ -345,9 +439,8 @@ def summarize_target_depth_data(
                     for arm in group_arms
                 ],
                 "primary": primary,
-                "validation_ce_delta_vs_ntp": [
-                    row for row in delta_rows
-                ],
+                "transition_intervals": transition_rows,
+                "validation_ce_delta_vs_ntp": delta_rows,
             }
         )
 
@@ -367,6 +460,7 @@ def summarize_target_depth_data(
         "groups": output_groups,
         "validation_ce_by_step": all_validation_rows,
         "validation_ce_delta_vs_ntp": all_delta_rows,
+        "transition_intervals": all_transition_rows,
     }
 
 
@@ -415,7 +509,9 @@ def summarize_target_depth(
     )
     with (output / "validation_ce_by_step.csv").open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=["grammar_seed", "model_seed", "step", *names]
+            handle,
+            fieldnames=["grammar_seed", "model_seed", "step", *names],
+            lineterminator="\n",
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -423,10 +519,35 @@ def summarize_target_depth(
         "w", encoding="utf-8", newline=""
     ) as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=["grammar_seed", "model_seed", "step", *names]
+            handle,
+            fieldnames=["grammar_seed", "model_seed", "step", *names],
+            lineterminator="\n",
         )
         writer.writeheader()
         writer.writerows(result["validation_ce_delta_vs_ntp"])
+    with (output / "transition_intervals.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "grammar_seed",
+                "model_seed",
+                "target",
+                "transition",
+                "from_level",
+                "to_level",
+                "tau_interval",
+                "tau_interval_status",
+                "ntp_tau_interval",
+                "ntp_tau_interval_status",
+                "delta_tau_interval_vs_ntp",
+                "delta_tau_interval_vs_ntp_status",
+            ],
+            lineterminator="\n",
+        )
+        writer.writeheader()
+        writer.writerows(result["transition_intervals"])
     print(output / "comparison.json")
     return result
 

@@ -258,6 +258,65 @@ def _plot_acquisition_bars(group: dict[str, Any], output_dir: Path) -> None:
     _save_figure(figure, output_dir / "acquisition_times.png")
 
 
+def _transition_value(
+    row: Mapping[str, Any], transition: str, field: str
+) -> float:
+    comparison = row.get("transitions", {}).get(transition, {}).get(field)
+    if not isinstance(comparison, Mapping) or comparison.get("status") != "observed":
+        return np.nan
+    return float(comparison["value"])
+
+
+def _plot_transition_intervals(group: dict[str, Any], output_dir: Path) -> None:
+    """Plot l-1 -> l accessibility intervals and their NTP-relative changes."""
+    rows = group["primary"]
+    labels = [row["target"] for row in rows]
+    transitions = group.get("transition_pairs", [])
+    figure, axes = plt.subplots(2, 1, figsize=(11.0, 8.0), sharex=True)
+    if not transitions:
+        for axis in axes:
+            axis.text(
+                0.5,
+                0.5,
+                "No adjacent hierarchy-level transitions are available",
+                ha="center",
+                va="center",
+            )
+            axis.set_axis_off()
+        _save_figure(figure, output_dir / "transition_intervals.png")
+        return
+
+    for transition in transitions:
+        axes[0].plot(
+            labels,
+            [_transition_value(row, transition, "tau_interval") for row in rows],
+            marker="o",
+            label=transition,
+        )
+        axes[1].plot(
+            labels,
+            [
+                _transition_value(
+                    row, transition, "delta_tau_interval_vs_ntp"
+                )
+                for row in rows
+            ],
+            marker="o",
+            label=transition,
+        )
+    axes[0].set_ylabel("updates")
+    axes[0].set_title("Adjacent accessibility-transition duration")
+    axes[0].legend(fontsize=8, ncol=2)
+    axes[0].grid(alpha=0.25)
+    axes[1].axhline(0.0, color="black", linewidth=0.7, alpha=0.5)
+    axes[1].set_ylabel("updates versus NTP")
+    axes[1].set_title("Adjacent transition differences versus NTP")
+    axes[1].legend(fontsize=8, ncol=2)
+    axes[1].grid(alpha=0.25)
+    axes[1].set_xlabel("target arm")
+    _save_figure(figure, output_dir / "transition_intervals.png")
+
+
 def _plot_validation_ce(group: dict[str, Any], output_dir: Path) -> None:
     figure, axis = plt.subplots(figsize=(11.0, 5.0))
     for arm in group["arms"]:
@@ -519,6 +578,7 @@ def plot_target_depth_comparison(
     for group in groups:
         group_output = _group_directory(output, group, multiple)
         _plot_acquisition_bars(group, group_output)
+        _plot_transition_intervals(group, group_output)
         _plot_validation_ce(group, group_output)
         for level in group.get("primary_levels", levels):
             _plot_level_curves(

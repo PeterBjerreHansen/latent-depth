@@ -16,25 +16,38 @@ targets actually present in each paired group.
 
 Summary:
 
-| target | H2 `tau` / `Delta` | H3 `tau` / `Delta` | H4 `tau` / `Delta` | `tau_3 - tau_2` | best validation CE / `Delta` |
-|---|---:|---:|---:|---:|---:|
-| NTP | 1,250 / 0 | 3,250 / 0 | 6,250 / 0 | 2,000 | 1.400051 / 0 |
-| `j=0` | 1,000 / -250 | 2,500 / -750 | 5,250 / -1,000 | 1,500 | 1.398966 / -0.001085 |
-| `j=1` | 1,250 / 0 | 2,750 / -500 | 5,750 / -500 | 1,500 | 1.399097 / -0.000954 |
-| `j=2` | 1,250 / 0 | 3,000 / -250 | 6,000 / -250 | 1,750 | 1.399560 / -0.000491 |
-| `j=3` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,750 | 1.399324 / -0.000727 |
-| `j=4` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,750 | 1.399499 / -0.000552 |
-| `j=5` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,750 | 1.399143 / -0.000908 |
-| `j=6` | 1,250 / 0 | 2,750 / -500 | 5,500 / -750 | 1,500 | 1.399275 / -0.000776 |
-| `j=7` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,750 | 1.399006 / -0.001045 |
-| `j=8` | 1,250 / 0 | 3,000 / -250 | 5,500 / -750 | 1,750 | 1.399001 / -0.001050 |
+| target | H2 `tau` / `Delta tau` | H3 `tau` / `Delta tau` | H4 `tau` / `Delta tau` | H1→H2 `Delta tau` / `Delta interval` | H2→H3 `Delta tau` / `Delta interval` | H3→H4 `Delta tau` / `Delta interval` | best validation CE / `Delta` |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| NTP | 1,250 / 0 | 3,250 / 0 | 6,250 / 0 | 1,250 / 0 | 2,000 / 0 | 3,000 / 0 | 1.400051 / 0 |
+| `j=0` | 1,000 / -250 | 2,500 / -750 | 5,250 / -1,000 | 1,000 / -250 | 1,500 / -500 | 2,750 / -250 | 1.398966 / -0.001085 |
+| `j=1` | 1,250 / 0 | 2,750 / -500 | 5,750 / -500 | 1,250 / 0 | 1,500 / -500 | 3,000 / 0 | 1.399097 / -0.000954 |
+| `j=2` | 1,250 / 0 | 3,000 / -250 | 6,000 / -250 | 1,250 / 0 | 1,750 / -250 | 3,000 / 0 | 1.399560 / -0.000491 |
+| `j=3` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399324 / -0.000727 |
+| `j=4` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399499 / -0.000552 |
+| `j=5` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399143 / -0.000908 |
+| `j=6` | 1,250 / 0 | 2,750 / -500 | 5,500 / -750 | 1,250 / 0 | 1,500 / -500 | 2,750 / -250 | 1.399275 / -0.000776 |
+| `j=7` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399006 / -0.001045 |
+| `j=8` | 1,250 / 0 | 3,000 / -250 | 5,500 / -750 | 1,250 / 0 | 1,750 / -250 | 2,500 / -500 | 1.399001 / -0.001050 |
+
+In the level columns, `Delta tau` is the arm onset minus the NTP onset for
+that level. In the transition columns, the first value is the arm interval
+`tau_l - tau_l-1`; `Delta interval` is that interval minus the corresponding
+NTP interval. The machine-readable transition rows are in
+[`transition_intervals.csv`](runs/target_depth_l5_lambda_0_3_10000_updates/analysis/transition_intervals.csv),
+and the corresponding figure is
+[`transition_intervals.png`](runs/target_depth_l5_lambda_0_3_10000_updates/analysis/plots/transition_intervals.png).
 
 The primary H2/H3 timing result shows the largest acceleration for `j=0`:
-250 updates earlier for H2 and 750 updates earlier for H3. Later targets also
-advance H3 and H4 in this seed, but there is no monotone target-depth pattern.
-All H4 events are observed within the extended 10,000-update budget. The
-best-validation CE values are within 0.0011 of the paired NTP value; the full
-matched-update CE curves are in the archived analysis CSV outputs.
+250 updates earlier for H2 and 750 updates earlier for H3. Its H2→H3 interval
+is also 500 updates shorter than NTP, so the H3 result is not explained only by
+an earlier H2 onset. Targets `j=1` and `j=6` also shorten H2→H3 by 500 updates;
+the other auxiliary targets shorten it by 250 updates in this seed. The
+H3→H4 interval is shortened most by `j=8` (500 updates), while `j=1` and
+`j=2` leave that interval unchanged. Later targets advance H3 and H4 in this
+seed, but there is no monotone target-depth pattern. All H4 events are observed
+within the extended 10,000-update budget. The best-validation CE values are
+within 0.0011 of the paired NTP value; the full matched-update CE curves and
+transition rows are in the archived analysis outputs.
 
 The final report includes the 50/75/90% probe milestones, layerwise
 accessibility curves, optional shuffled-label controls, clustering and `Q` as

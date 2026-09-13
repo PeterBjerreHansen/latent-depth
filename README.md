@@ -30,7 +30,8 @@ The reusable seams are deliberately small:
   raw-trajectory accessibility analysis used by the Stage-02 summarizer.
 - [`summarize_target_depth.py`](summarize_target_depth.py) is the analysis entry
   point: it loads raw trajectories, applies the frozen rule, computes paired
-  accessibility differences, and writes the compact comparison table.
+  accessibility differences and adjacent-level transition intervals, and
+  writes the compact comparison table.
 - [`sweep_data_size.py`](sweep_data_size.py) runs explicit training-size or
   replicate sweeps.
 - [`sweep_target_depth.py`](sweep_target_depth.py) runs the Stage-02 fixed-depth
