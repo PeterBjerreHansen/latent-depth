@@ -38,7 +38,7 @@ It uses the Stage-01 exposure regime:
 - fresh `P=65,536` training pool each epoch and fixed validation/test pools;
 - eight blocks, width 256, batch size 256, AdamW with learning rate `3e-4`;
 - 10,000 optimizer updates, evaluation every 250 updates including step zero;
-- exact diagnostic checkpoints every 500 updates; and
+- exact diagnostic checkpoints every 250 updates; and
 - NTP plus fixed target depths `j=0,...,8`.
 
 The screen uses `lambda=0.3`, grammar seed 0, and model seed 0. All arms share

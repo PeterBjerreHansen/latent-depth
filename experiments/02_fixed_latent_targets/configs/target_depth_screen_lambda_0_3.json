@@ -54,7 +54,7 @@
       "deterministic": true,
       "deterministic_strict": false,
       "save_checkpoints": true,
-      "checkpoint_every_updates": 500
+      "checkpoint_every_updates": 250
     },
     "model_seed": 0
   },
