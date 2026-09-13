@@ -1,0 +1,113 @@
+{
+  "probe_seed": 12346,
+  "num_sequences": 16384,
+  "fit_examples": 8192,
+  "eval_examples": 8192,
+  "probe_steps": 3000,
+  "probe_lr": 0.01,
+  "threshold": 0.75,
+  "persistence_checkpoints": 2,
+  "checkpoint_interval": 100,
+  "note": "Local crossing-window sensitivity checks, not complete second-seed trajectories. Same trained backbones and validation pool; probe partition seed differs. Primary results remain seed 12345. No inference about earlier unchecked crossings.",
+  "windows": [
+    {
+      "arm": "ntp",
+      "level": 3,
+      "checked_steps": [
+        1900,
+        2000,
+        2100,
+        2200
+      ],
+      "primary_seed_12345_onset": 2000,
+      "seed_12346_local_onset": 2100,
+      "seed_12346_local_confirmation": 2200,
+      "seed_12346_observer_layer": 5,
+      "onset_shift": 100,
+      "max_accuracy_by_step": {
+        "1900": 0.7388904065137807,
+        "2000": 0.7481855452298725,
+        "2100": 0.7637712806428036,
+        "2200": 0.7820503677394268
+      }
+    },
+    {
+      "arm": "target_0",
+      "level": 3,
+      "checked_steps": [
+        1300,
+        1400,
+        1500
+      ],
+      "primary_seed_12345_onset": 1400,
+      "seed_12346_local_onset": 1400,
+      "seed_12346_local_confirmation": 1500,
+      "seed_12346_observer_layer": 7,
+      "onset_shift": 0,
+      "max_accuracy_by_step": {
+        "1300": 0.7328631027220962,
+        "1400": 0.7800328776844023,
+        "1500": 0.8024600579920816
+      }
+    },
+    {
+      "arm": "target_6",
+      "level": 3,
+      "checked_steps": [
+        1600,
+        1700,
+        1800
+      ],
+      "primary_seed_12345_onset": 1700,
+      "seed_12346_local_onset": 1700,
+      "seed_12346_local_confirmation": 1800,
+      "seed_12346_observer_layer": 7,
+      "onset_shift": 0,
+      "max_accuracy_by_step": {
+        "1600": 0.7377269233946,
+        "1700": 0.7676653340999926,
+        "1800": 0.7689928411148226
+      }
+    },
+    {
+      "arm": "target_0",
+      "level": 4,
+      "checked_steps": [
+        4000,
+        4100,
+        4200,
+        4300
+      ],
+      "primary_seed_12345_onset": 4200,
+      "seed_12346_local_onset": 4100,
+      "seed_12346_local_confirmation": 4200,
+      "seed_12346_observer_layer": 8,
+      "onset_shift": -100,
+      "max_accuracy_by_step": {
+        "4000": 0.7461737259552106,
+        "4100": 0.7585060146282449,
+        "4200": 0.7637537385008455,
+        "4300": 0.7816180341755627
+      }
+    },
+    {
+      "arm": "target_6",
+      "level": 4,
+      "checked_steps": [
+        3800,
+        3900,
+        4000
+      ],
+      "primary_seed_12345_onset": 3900,
+      "seed_12346_local_onset": 3900,
+      "seed_12346_local_confirmation": 4000,
+      "seed_12346_observer_layer": 7,
+      "onset_shift": 0,
+      "max_accuracy_by_step": {
+        "3800": 0.7394793656260334,
+        "3900": 0.7531103412713567,
+        "4000": 0.7582803480932598
+      }
+    }
+  ]
+}

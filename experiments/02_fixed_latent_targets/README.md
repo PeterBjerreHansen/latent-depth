@@ -5,6 +5,10 @@ target-depth differences resolvable for later continuation experiments.
 The old lambda=0.3 run is retired; its compact factual record is
 [retired_lambda_0_3.json](retired_lambda_0_3.json). Its large artifacts are removed.
 
+The six-arm lambda=1.0 screen is complete. See [RESULTS.md](RESULTS.md) for the
+findings and [portable evidence](results/lambda_1_0/README.md) for measurements,
+checks and figures.
+
 ## Frozen training protocol
 
 Use [target_depth_screen_lambda_1_0.json](configs/target_depth_screen_lambda_1_0.json):
