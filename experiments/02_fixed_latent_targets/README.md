@@ -125,6 +125,30 @@ not-confirmed NTP event cannot hide auxiliary movement at another layer.
 The controls are optional; when requested, `--controls` adds the trained-backbone
 shuffled-label probe.
 
+## Archive lightweight results
+
+The `runs/` directory is ignored so model checkpoints remain local. To commit
+the reproducible logs and derived results without staging checkpoints, force-add
+only the following allowlist:
+
+```bash
+run=experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates
+git add -f \
+  "$run"/sweep_config.json \
+  "$run"/metrics.jsonl \
+  "$run"/grammar_0/model_0/*/config.json \
+  "$run"/grammar_0/model_0/*/metrics.json \
+  "$run"/grammar_0/model_0/*/trajectory/trajectory.json \
+  "$run"/analysis/comparison.json \
+  "$run"/analysis/validation_ce_by_step.csv \
+  "$run"/analysis/validation_ce_delta_vs_ntp.csv \
+  "$run"/analysis/plots/*.png
+```
+
+This records the resolved configs, training metrics, consolidated trajectories,
+comparison tables, and plots. It intentionally excludes all model checkpoints,
+optimizer states, and redundant per-checkpoint JSON files.
+
 
 ## Interpretation and follow-up
 
