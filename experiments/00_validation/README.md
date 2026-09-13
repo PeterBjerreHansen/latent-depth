@@ -1,65 +1,43 @@
 # Stage 00: implementation validation
 
-This stage checks the data generator, causal next-token objective, checkpoint
-and resume behavior, device behavior, and optional diagnostics. It is a small
-validation suite, not evidence for the latent-depth hypothesis.
-
-Run commands from the repository root. Outputs belong under
-`experiments/00_validation/runs/`, which is ignored by Git; the condensed
-record is [RESULTS.md](RESULTS.md).
-
-## Checks
+These small workflows validate the implementation, not the scientific hypothesis.
+Run from the repository root with `.venv/bin/python`.
 
 ```bash
-python -m pytest -q
-
-PYTORCH_ENABLE_MPS_FALLBACK=0 python validate_implementation.py \
+.venv/bin/python -m pytest -q
+PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python validate_implementation.py \
   --output experiments/00_validation/runs/implementation_validation/validation.json
-```
 
-## Small training and diagnostics
-
-```bash
-python train.py \
-  --config experiments/00_validation/configs/smoke.json \
+.venv/bin/python train.py --config experiments/00_validation/configs/smoke.json \
   --output-dir experiments/00_validation/runs/smoke
 
-python train.py \
-  --config experiments/00_validation/configs/diagnostics_smoke.json \
-  --output-dir experiments/00_validation/runs/diagnostics_smoke
+.venv/bin/python sweep_target_depth.py \
+  --config experiments/00_validation/configs/target_depth_smoke.json \
+  --output-dir experiments/00_validation/runs/target_depth_smoke
 
-python diagnose.py \
-  --checkpoint experiments/00_validation/runs/diagnostics_smoke/last.pt \
-  --controls \
-  --output experiments/00_validation/runs/diagnostics_smoke/controls.json
+for arm in ntp target_0 target_2; do
+  run=experiments/00_validation/runs/target_depth_smoke/grammar_0/model_0/$arm
+  .venv/bin/python diagnose_trajectory.py --run-dir "$run" \
+    --output-dir "$run/trajectory" --device cpu --num-sequences 32 --probe-steps 8
+  .venv/bin/python diagnose_trajectory.py --run-dir "$run" \
+    --output-dir "$run/supporting" --metric clustering --steps 0 4 \
+    --device cpu --num-sequences 32
+done
+
+.venv/bin/python summarize_target_depth.py \
+  --screen-dir experiments/00_validation/runs/target_depth_smoke \
+  --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+  --output-dir experiments/00_validation/runs/target_depth_smoke/analysis
+.venv/bin/python plot_trajectory.py \
+  --comparison experiments/00_validation/runs/target_depth_smoke/analysis/comparison.json \
+  --output-dir experiments/00_validation/runs/target_depth_smoke/analysis/plots
 ```
 
-## Small sweeps and controls
+The data-size and fixed-exposure workflows remain available through
+`sweep_data_size.py` and their existing configs. They now report final validation
+metrics. `plot.py --metric val_last_position_nll` plots the corresponding
+last-token measurement. Test evaluation is explicit via `evaluate_snapshot.py`.
 
-```bash
-python sweep_data_size.py \
-  --config experiments/00_validation/configs/data_sweep.json \
-  --output-dir experiments/00_validation/runs/data_sweep
-
-python sweep_data_size.py \
-  --config experiments/00_validation/configs/fixed_exposure.json \
-  --output-dir experiments/00_validation/runs/fixed_exposure
-
-python sweep_data_size.py \
-  --config experiments/00_validation/configs/grammar_replication.json \
-  --output-dir experiments/00_validation/runs/grammar_replication
-
-python sweep_data_size.py \
-  --config experiments/00_validation/configs/saturated_null.json \
-  --output-dir experiments/00_validation/runs/saturated_null
-
-python plot.py \
-  --metrics experiments/00_validation/runs/fixed_exposure/metrics.jsonl \
-  --config experiments/00_validation/configs/fixed_exposure.json \
-  --metric test_last_position_nll \
-  --output experiments/00_validation/runs/fixed_exposure/last_token_nll.png
-```
-
-The sweep writes a simple `sweep_config.json` and one resolved `config.json`
-per run. Use `--resume` only for an interrupted run with the same sweep
-configuration; start a new output directory for a new experiment.
+Use new output directories for new configurations. Sweep `--resume` skips
+completed arms with the same config; `train.py --resume-from` restores an exact
+training state and can extend its update budget.

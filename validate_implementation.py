@@ -42,7 +42,7 @@ def _tiny_config(*, device: str, max_updates: int = 4) -> ExperimentConfig:
             },
             "data": {"train_size": 32, "val_size": 32, "test_size": 32},
             "model": {"n_layer": 1, "n_head": 1, "n_embd": 16, "dropout": 0.0},
-            "objective": {"mode": "next_token"},
+
             "optim": {
                 "name": "adamw",
                 "learning_rate": 0.001,
@@ -88,7 +88,6 @@ def _datasets(bundle):
     return (
         LeafSequenceDataset(bundle.train.leaves),
         LeafSequenceDataset(bundle.val.leaves),
-        LeafSequenceDataset(bundle.test.leaves),
     )
 
 

@@ -22,8 +22,8 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     parser.add_argument(
         "--metric",
-        default="test_ce",
-        choices=("test_ce", "test_last_position_nll"),
+        default="val_ce",
+        choices=("val_ce", "val_last_position_nll"),
         help="held-out metric to plot",
     )
     args = parser.parse_args()
@@ -55,7 +55,7 @@ def main() -> None:
     ax.set_xlabel("training set size P")
     ax.set_ylabel(
         "held-out final-token NLL"
-        if args.metric == "test_last_position_nll"
+        if args.metric == "val_last_position_nll"
         else "held-out next-token cross-entropy"
     )
 

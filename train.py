@@ -18,6 +18,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, help="JSON experiment config")
     parser.add_argument("--output-dir", required=True)
+    parser.add_argument("--resume-from", help="full continuation checkpoint")
     args = parser.parse_args()
 
     cfg = ExperimentConfig.from_json(args.config)
@@ -38,7 +39,6 @@ def main() -> None:
         val_size=cfg.data.val_size,
         test_size=cfg.data.test_size,
     )
-    torch.save(bundle.rules, out / "rules.pt")
     with open(out / "config.json", "w", encoding="utf-8") as f:
         json.dump(cfg.to_dict(), f, indent=2)
     print("RHM sequence length:", cfg.rhm.s**cfg.rhm.L)
@@ -47,9 +47,8 @@ def main() -> None:
         cfg,
         LeafSequenceDataset(bundle.train.leaves),
         LeafSequenceDataset(bundle.val.leaves),
-        LeafSequenceDataset(bundle.test.leaves),
         output_dir=out,
-        diagnostic_split=bundle.val if cfg.diagnostics.enabled else None,
+        resume_from=args.resume_from,
         rules=bundle.rules,
     )
     print(json.dumps({k: v for k, v in metrics.items() if k != "history"}, indent=2))

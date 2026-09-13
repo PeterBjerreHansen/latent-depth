@@ -1,69 +1,50 @@
 # Learning to Predict Deeper: RHM × nanoGPT
 
-This repository studies whether a small causal Transformer develops useful
-hierarchical representations while learning to predict fixed finite sequences
-from a Random Hierarchy Model (RHM). The exposed baseline objective is ordinary
-causal next-token prediction (NTP). Stage 02 adds a separate fixed-target
-auxiliary-loss experiment after the Stage-01 baseline gate.
+This repository studies whether the useful depth of auxiliary latent supervision
+changes during causal next-token learning on a Random Hierarchy Model (RHM).
+The current experiment calibrates stronger auxiliary weighting before later
+shared-state continuation comparisons.
 
-## Architecture
+## Workflows
 
 ```text
-RHM rules and trees → leaf dataset → causal nanoGPT → NTP checkpoints
-                                                        ↓
-                           raw diagnostics → fixed acquisition analysis
-                                                        ↓
-                                      comparison plots and results
-                                                        ↓
-                                      fixed residual-target auxiliary arms
+RHM leaves → causal Transformer + optional fixed-target predictor
+                  ↓                            ↓
+         backbone snapshots          continuation checkpoints
+                  ↓
+         offline probes → paired accessibility and NTP curves
 ```
 
-The reusable seams are deliberately small:
-
-- [`rhm/`](rhm/) generates rules, trees, splits, and theory references.
-- [`nanogpt/model.py`](nanogpt/model.py) implements the causal Transformer.
-- [`training.py`](training.py) owns evaluation, checkpoints, and training.
-- [`auxiliary.py`](auxiliary.py) defines the fixed residual-target predictor
-  and cosine auxiliary loss used by Stage 02.
-- [`diagnostics/`](diagnostics/) observes hidden states without changing NTP.
-- [`summarize_trajectory.py`](summarize_trajectory.py) provides the internal
-  raw-trajectory accessibility analysis used by the Stage-02 summarizer.
-- [`summarize_target_depth.py`](summarize_target_depth.py) is the analysis entry
-  point: it loads raw trajectories, applies the frozen rule, computes paired
-  accessibility differences and adjacent-level transition intervals, and
-  writes the compact comparison table.
-- [`sweep_data_size.py`](sweep_data_size.py) runs explicit training-size or
-  replicate sweeps.
-- [`sweep_target_depth.py`](sweep_target_depth.py) runs the Stage-02 fixed-depth
-  target screen.
+- `training.py` trains and records fixed-validation NLL. It does not run
+  diagnostics, select a second model, or evaluate test data.
+- `auxiliary.py` defines detached next-position residual targets and the predictor.
+- `diagnose.py` / `diagnose_trajectory.py` inspect saved backbone states offline.
+- `summarize_target_depth.py` applies the frozen measurement rule to paired arms.
+- `plot_trajectory.py` plots accessibility and matched-update validation curves.
+- `evaluate_snapshot.py` explicitly evaluates a chosen snapshot on validation/test.
+- `sweep_target_depth.py` runs fixed-depth arms; `--arms` selects a subset.
+- `sweep_data_size.py` retains small data-size and baseline replication workflows.
 
 ## Experiments
 
 - [Stage 00: implementation validation](experiments/00_validation/README.md)
 - [Stage 01: NTP developmental baseline](experiments/01_ntp_development/README.md)
-- [Stage 02: fixed auxiliary target depth](experiments/02_fixed_latent_targets/README.md)
+- [Stage 02: stronger fixed-target screen](experiments/02_fixed_latent_targets/README.md)
 
-Run outputs belong in the local `runs/` directory of each experiment and are
-intentionally not tracked. Each run keeps the resolved config, metrics, and
-checkpoints needed to inspect or resume that run. Historical runs are not part
-of the runnable core protocol.
+Local run directories contain resolved configs, the exact grammar, measurements,
+model-only snapshots, and sparse full continuation states. Large run artifacts
+are ignored. Keep compact results and calibration records with each experiment.
+Historical formats are not compatibility targets.
 
-## Setup and tests
+## Setup
 
 ```bash
-python -m pip install -r requirements.txt
-python -m pytest -q
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m pytest -q
 ```
 
-For the complete implementation validation matrix, see
-[`experiments/00_validation/README.md`](experiments/00_validation/README.md).
-
-## Background
-
-- [Implementation notes](documents/IMPLEMENTATION_NOTES.md)
-- [Validation notes](documents/VALIDATION.md)
-- [Project proposal](documents/writeup_v2.md)
-- [Origin and licensing](documents/PROVENANCE.md)
-
-The code is a causal-Transformer baseline and should not be described as a
-reproduction of non-causal encoder or masked teacher/student experiments.
+See [implementation notes](documents/IMPLEMENTATION_NOTES.md),
+[validation notes](documents/VALIDATION.md), the
+[research proposal](documents/writeup_v2.md), and
+[origin and licensing](documents/PROVENANCE.md).

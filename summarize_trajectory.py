@@ -412,6 +412,7 @@ def summarize_trajectory_data(
         "split": trajectory.get("split"),
         "num_sequences": trajectory.get("num_sequences"),
         "probe_steps": trajectory.get("probe_steps"),
+        "diagnostic_config": trajectory.get("diagnostic_config"),
         "checkpoint_steps": steps,
         "through_step": int(steps[-1]),
         "levels": levels_output,

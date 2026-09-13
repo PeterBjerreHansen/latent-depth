@@ -17,7 +17,6 @@ from training import (
     _clip_parameters,
     _make_optimizer,
     build_model,
-    load_training_state,
     seed_everything,
     train_model,
     training_losses,
@@ -39,7 +38,7 @@ def _cfg(*, auxiliary: bool = True, target_layer: int = 1) -> ExperimentConfig:
         },
         "data": {"train_size": 32, "val_size": 32, "test_size": 32},
         "model": {"n_layer": 2, "n_head": 2, "n_embd": 16, "dropout": 0.0},
-        "objective": {"mode": "next_token"},
+
         "auxiliary": {
             "mode": "next_latent" if auxiliary else "none",
             "target_layer": target_layer if auxiliary else None,
@@ -95,7 +94,6 @@ def _datasets(bundle):
     return (
         LeafSequenceDataset(bundle.train.leaves),
         LeafSequenceDataset(bundle.val.leaves),
-        LeafSequenceDataset(bundle.test.leaves),
     )
 
 
@@ -265,8 +263,6 @@ def test_offline_diagnostics_ignore_predictor_and_work_on_auxiliary_checkpoint(t
     cfg.data.test_size = 16
     cfg.train.batch_size = 8
     cfg.train.max_updates = 1
-    cfg.diagnostics.num_sequences = 8
-    cfg.diagnostics.probe_steps = 2
     bundle = _bundle(cfg)
     train_model(
         cfg,
@@ -292,20 +288,6 @@ def test_offline_diagnostics_ignore_predictor_and_work_on_auxiliary_checkpoint(t
     }
 
 
-def test_load_training_state_rejects_auxiliary_checkpoint(tmp_path: Path):
-    cfg = _cfg(auxiliary=True, target_layer=1)
-    cfg.train.max_updates = 1
-    bundle = _bundle(cfg)
-    train_model(
-        cfg,
-        *_datasets(bundle),
-        output_dir=tmp_path,
-        rules=bundle.rules,
-        verbose=False,
-    )
-
-    with pytest.raises(ValueError, match="only supports NTP checkpoints"):
-        load_training_state(tmp_path / "last.pt")
 
 
 def test_target_depth_sweep_config_accepts_ntp_and_fixed_layers(tmp_path: Path):

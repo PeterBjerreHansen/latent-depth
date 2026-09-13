@@ -15,7 +15,7 @@ def test_next_token_indexing():
     cfg = ExperimentConfig.from_dict(
         {
             "rhm": {"v": 16, "n": 16, "m": 4, "s": 2, "L": 3},
-            "objective": {"mode": "next_token"},
+
         }
     )
     tokens = torch.arange(8).unsqueeze(0)
@@ -25,14 +25,6 @@ def test_next_token_indexing():
     assert input_block_size(cfg) == 8
 
 
-def test_last_token_mode_is_rejected():
-    with pytest.raises(ValueError, match="next_token"):
-        ExperimentConfig.from_dict(
-            {
-                "rhm": {"v": 32, "n": 32, "m": 8, "s": 2, "L": 3},
-                "objective": {"mode": "last_token"},
-            }
-        )
 
 
 def test_objective_inputs_rejects_short_sequences():

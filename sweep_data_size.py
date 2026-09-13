@@ -165,10 +165,8 @@ def main() -> None:
         )
         grammar_dir = out / f"grammar_{grammar_seed}"
         grammar_dir.mkdir(exist_ok=True)
-        torch.save(bundle.rules, grammar_dir / "rules.pt")
 
         val_ds = LeafSequenceDataset(bundle.val.leaves)
-        test_ds = LeafSequenceDataset(bundle.test.leaves)
 
         for model_seed in grammar_model_seeds:
             for P in sweep.train_sizes:
@@ -201,9 +199,7 @@ def main() -> None:
                     cfg,
                     train_ds,
                     val_ds,
-                    test_ds,
                     output_dir=run_dir,
-                    diagnostic_split=bundle.val if cfg.diagnostics.enabled else None,
                     rules=bundle.rules,
                 )
                 row = {k: v for k, v in metrics.items() if k != "history"}

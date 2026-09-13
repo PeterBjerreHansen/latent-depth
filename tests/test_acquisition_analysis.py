@@ -216,7 +216,7 @@ def _config(target_layer):
             "resample_train_each_epoch": True,
         },
         "model": {"n_layer": 3, "n_head": 2, "n_embd": 16, "dropout": 0.0, "bias": True},
-        "objective": {"mode": "next_token"},
+
         "auxiliary": {
             "mode": "none" if target_layer is None else "next_latent",
             "target_layer": target_layer, "weight": 0.1,
@@ -226,17 +226,12 @@ def _config(target_layer):
             "name": "adamw", "learning_rate": 0.001, "betas": [0.9, 0.95],
             "weight_decay": 0.0, "warmup_epochs": 0.0,
         },
-        "diagnostics": {
-            "enabled": True, "linear_probe": True, "synonym_clustering": True,
-            "every_evals": 1, "num_sequences": 32, "probe_steps": 8,
-            "probe_lr": 0.01, "seed": 123, "eps": 1e-8,
-        },
         "train": {
             "batch_size": 16, "max_epochs": 5, "max_updates": 6,
             "grad_clip": 1.0, "eval_every_epochs": 1, "eval_every_updates": 1,
             "eval_at_start": True, "num_workers": 0, "device": "cpu",
             "deterministic": True, "deterministic_strict": True,
-            "save_checkpoints": True, "checkpoint_every_updates": 1,
+            "save_checkpoints": True, "checkpoint_every_updates": 1, "diagnostic_snapshot_every_updates": 1,
         },
         "model_seed": 0,
     }
@@ -403,3 +398,14 @@ def test_target_depth_cli_reads_raw_trajectories_and_writes_compact_comparison(t
         tmp_path / "analysis" / "comparison.json", tmp_path / "plots"
     )
     assert (tmp_path / "plots" / "h2_accessibility.png").exists()
+
+
+def test_paired_comparison_rejects_different_probe_settings():
+    summary = summarize_trajectory_data(_with_onsets((0, 50, 100, 150, 200, 250), h2=50, h3=150), RULE)
+    arms = _paired_arms(summary, summary)
+    import copy
+    arms = copy.deepcopy(arms)
+    arms[1]['summary'] = copy.deepcopy(arms[1]['summary'])
+    arms[1]['summary']['diagnostic_config'] = {'seed': 999, 'probe_lr': .01}
+    with pytest.raises(ValueError, match='diagnostic'):
+        summarize_target_depth_data(arms, primary_levels=[2, 3])

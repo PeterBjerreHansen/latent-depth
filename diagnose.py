@@ -4,14 +4,16 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 import json
 from pathlib import Path
 from typing import Any
 
+from config import DiagnosticsConfig
 from diagnostics import run_latent_diagnostics, run_probe_control
 from rhm.dataset import RHMSplit
-from rhm.random_hierarchy_model import sample_rules, sample_trees
-from training import load_model_from_checkpoint, resolve_device
+from rhm.random_hierarchy_model import sample_trees
+from training import load_model_from_checkpoint, resolve_device, artifact_rules
 
 
 def diagnose_checkpoint(
@@ -23,8 +25,10 @@ def diagnose_checkpoint(
     num_sequences: int | None = None,
     probe_steps: int | None = None,
     controls: bool = False,
+    probe_seed: int = 12345,
+    probe_lr: float = 1e-3,
 ) -> dict[str, Any]:
-    """Re-run the same observer diagnostics used during training."""
+    """Measure a frozen backbone using independent offline probe settings."""
     if split not in {"val", "test"}:
         raise ValueError("split must be 'val' or 'test'")
     if metric not in {"all", "probe", "clustering"}:
@@ -32,25 +36,15 @@ def diagnose_checkpoint(
 
     resolved_device = resolve_device(device)
     model, cfg, checkpoint_data = load_model_from_checkpoint(checkpoint, device=str(resolved_device))
-    cfg.diagnostics.enabled = True
-    cfg.diagnostics.linear_probe = metric in {"all", "probe"}
-    cfg.diagnostics.synonym_clustering = metric in {"all", "clustering"}
-    if num_sequences is not None:
-        cfg.diagnostics.num_sequences = num_sequences
-    if probe_steps is not None:
-        cfg.diagnostics.probe_steps = probe_steps
-    cfg.validate()
-
-    rules = checkpoint_data.get("rules")
-    if rules is None:
-        rules = sample_rules(
-            v=cfg.rhm.v,
-            n=cfg.rhm.n,
-            m=cfg.rhm.m,
-            s=cfg.rhm.s,
-            L=cfg.rhm.L,
-            seed=cfg.rhm.rule_seed,
-        )
+    settings = DiagnosticsConfig(
+        linear_probe=metric in {"all", "probe"},
+        synonym_clustering=metric in {"all", "clustering"},
+        num_sequences=num_sequences if num_sequences is not None else 1024,
+        probe_steps=probe_steps if probe_steps is not None else 300,
+        seed=probe_seed, probe_lr=probe_lr,
+    )
+    settings.validate()
+    rules = artifact_rules(checkpoint, checkpoint_data)
 
     configured_size = cfg.data.val_size if split == "val" else cfg.data.test_size
     sample_seed = cfg.rhm.val_seed if split == "val" else cfg.rhm.test_seed
@@ -59,11 +53,11 @@ def diagnose_checkpoint(
     # sampling N directly is not guaranteed to match slicing the full split.
     trees, choices = sample_trees(configured_size, rules, seed=sample_seed, return_choices=True)
     diagnostic_split = RHMSplit(trees=trees, choices=choices)
-    result = run_latent_diagnostics(model, diagnostic_split, rules, cfg, resolved_device)
-    if controls and cfg.diagnostics.linear_probe:
+    result = run_latent_diagnostics(model, diagnostic_split, rules, cfg, resolved_device, settings=settings)
+    if controls and settings.linear_probe:
         result["probe_controls"] = {
             "trained_backbone_shuffled_labels": run_probe_control(
-                model, diagnostic_split, cfg, resolved_device, shuffle_labels=True
+                model, diagnostic_split, cfg, resolved_device, shuffle_labels=True, settings=settings
             ),
         }
     return {
@@ -74,6 +68,7 @@ def diagnose_checkpoint(
         "rule_seed": cfg.rhm.rule_seed,
         "model_seed": cfg.model_seed,
         "diagnostics": result,
+        "diagnostic_config": asdict(settings),
     }
 
 
@@ -86,6 +81,8 @@ def main() -> None:
     parser.add_argument("--metric", choices=("all", "probe", "clustering"), default="all")
     parser.add_argument("--num-sequences", type=int, default=None)
     parser.add_argument("--probe-steps", type=int, default=None)
+    parser.add_argument("--probe-seed", type=int, default=12345)
+    parser.add_argument("--probe-lr", type=float, default=1e-3)
     parser.add_argument("--controls", action="store_true", help="include the shuffled-label probe")
     args = parser.parse_args()
 
@@ -96,7 +93,7 @@ def main() -> None:
         metric=args.metric,
         num_sequences=args.num_sequences,
         probe_steps=args.probe_steps,
-        controls=args.controls,
+        controls=args.controls, probe_seed=args.probe_seed, probe_lr=args.probe_lr,
     )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

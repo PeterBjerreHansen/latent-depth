@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-from config import ExperimentConfig
+from config import ExperimentConfig, DiagnosticsConfig
 from nanogpt import GPT
 from rhm.dataset import RHMSplit, slice_rhm_split
 from rhm.interventions import (
@@ -185,6 +185,7 @@ def run_probe_control(
     device: torch.device,
     *,
     shuffle_labels: bool = False,
+    settings: DiagnosticsConfig | None = None,
 ) -> dict[str, Any]:
     """Fit the same frozen linear probes with real or shuffled latent labels.
 
@@ -192,7 +193,9 @@ def run_probe_control(
     held-out split. It preserves the per-level class frequencies but breaks
     the relationship to the representation.
     """
-    n = min(int(cfg.diagnostics.num_sequences), int(split.leaves.shape[0]))
+    settings = settings or DiagnosticsConfig()
+    settings.validate()
+    n = min(int(settings.num_sequences), int(split.leaves.shape[0]))
     if n < 4:
         raise ValueError("diagnostic split must provide at least four examples")
     diagnostic_split = slice_rhm_split(split, n)
@@ -217,7 +220,7 @@ def run_probe_control(
             dim=0,
         )
         if shuffle_labels:
-            generator = torch.Generator(device="cpu").manual_seed(cfg.diagnostics.seed + 91_337)
+            generator = torch.Generator(device="cpu").manual_seed(settings.seed + 91_337)
             labels = labels[:, torch.randperm(n, generator=generator)]
         (
             accuracy,
@@ -232,11 +235,11 @@ def run_probe_control(
             features,
             labels,
             vocab_size=cfg.rhm.v,
-            steps=cfg.diagnostics.probe_steps,
-            learning_rate=cfg.diagnostics.probe_lr,
-            seed=cfg.diagnostics.seed,
+            steps=settings.probe_steps,
+            learning_rate=settings.probe_lr,
+            seed=settings.seed,
             device=device,
-            eps=cfg.diagnostics.eps,
+            eps=settings.eps,
         )
         return {
             "shuffle_labels": shuffle_labels,
@@ -306,6 +309,7 @@ def _synonym_clustering(
     rules: TensorDict,
     *,
     cfg: ExperimentConfig,
+    settings: DiagnosticsConfig,
     levels: list[int],
     positions: list[int],
     original_features: torch.Tensor,
@@ -322,7 +326,7 @@ def _synonym_clustering(
             L=cfg.rhm.L,
             s=cfg.rhm.s,
             abstraction_level=level,
-            seed=cfg.diagnostics.seed + 10_000 * level,
+            seed=settings.seed + 10_000 * level,
         )
         synonym_features = _features_at_positions(
             model,
@@ -332,12 +336,12 @@ def _synonym_clustering(
             device=device,
         )[0]
         labels = latent_labels(split, L=cfg.rhm.L, abstraction_level=level)
-        pairing = non_synonym_pairing(labels, seed=cfg.diagnostics.seed + 20_000 * level)
+        pairing = non_synonym_pairing(labels, seed=settings.seed + 20_000 * level)
         score, d_syn, d_generic = clustering_score_from_features(
             original_features[r_index],
             synonym_features,
             original_features[r_index][:, pairing, :],
-            eps=cfg.diagnostics.eps,
+            eps=settings.eps,
         )
         scores[r_index], synonym_distances[r_index], generic_distances[r_index] = (
             score,
@@ -353,6 +357,7 @@ def _variable_sensitivity(
     rules: TensorDict,
     *,
     cfg: ExperimentConfig,
+    settings: DiagnosticsConfig,
     levels: list[int],
     positions: list[int],
     original_features: torch.Tensor,
@@ -369,7 +374,7 @@ def _variable_sensitivity(
             L=cfg.rhm.L,
             s=cfg.rhm.s,
             abstraction_level=level,
-            seed=cfg.diagnostics.seed + 30_000 * level,
+            seed=settings.seed + 30_000 * level,
         )
         variable_features = _features_at_positions(
             model,
@@ -379,12 +384,12 @@ def _variable_sensitivity(
             device=device,
         )[0]
         labels = latent_labels(split, L=cfg.rhm.L, abstraction_level=level)
-        pairing = non_synonym_pairing(labels, seed=cfg.diagnostics.seed + 20_000 * level)
+        pairing = non_synonym_pairing(labels, seed=settings.seed + 20_000 * level)
         _, d_variable, d_generic = clustering_score_from_features(
             original_features[r_index],
             variable_features,
             original_features[r_index][:, pairing, :],
-            eps=cfg.diagnostics.eps,
+            eps=settings.eps,
         )
         distances[r_index], generic_distances[r_index] = d_variable, d_generic
     return distances, generic_distances
@@ -396,14 +401,17 @@ def run_latent_diagnostics(
     rules: TensorDict,
     cfg: ExperimentConfig,
     device: torch.device,
+    *, settings: DiagnosticsConfig | None = None,
 ) -> dict[str, Any]:
     """Run configured diagnostics without changing model parameters or RNG."""
+    settings = settings or DiagnosticsConfig()
+    settings.validate()
     if cfg.rhm.L < 2:
         raise ValueError("latent diagnostics require RHM depth L >= 2")
-    if cfg.diagnostics.synonym_clustering and cfg.rhm.m < 2:
+    if settings.synonym_clustering and cfg.rhm.m < 2:
         raise ValueError("synonym clustering requires at least two productions per latent")
 
-    n = min(int(cfg.diagnostics.num_sequences), int(split.leaves.shape[0]))
+    n = min(int(settings.num_sequences), int(split.leaves.shape[0]))
     if n < 4:
         raise ValueError("diagnostic split must provide at least four examples")
     diagnostic_split = slice_rhm_split(split, n)
@@ -434,7 +442,7 @@ def run_latent_diagnostics(
             "positions": positions,
             "layer_convention": "0=embedding stream; j>0=post Transformer block j; final LN excluded",
         }
-        if cfg.diagnostics.linear_probe:
+        if settings.linear_probe:
             (
                 accuracy,
                 ce,
@@ -448,11 +456,11 @@ def run_latent_diagnostics(
                 original_features,
                 labels,
                 vocab_size=cfg.rhm.v,
-                steps=cfg.diagnostics.probe_steps,
-                learning_rate=cfg.diagnostics.probe_lr,
-                seed=cfg.diagnostics.seed,
+                steps=settings.probe_steps,
+                learning_rate=settings.probe_lr,
+                seed=settings.seed,
                 device=device,
-                eps=cfg.diagnostics.eps,
+                eps=settings.eps,
             )
             probe: dict[str, Any] = {
                 "uniform_random_accuracy": 1.0 / cfg.rhm.v,
@@ -468,8 +476,8 @@ def run_latent_diagnostics(
                     str(level): float(balanced_majority_accuracy[r])
                     for r, level in enumerate(levels)
                 },
-                "probe_steps": cfg.diagnostics.probe_steps,
-                "probe_lr": cfg.diagnostics.probe_lr,
+                "probe_steps": settings.probe_steps,
+                "probe_lr": settings.probe_lr,
                 "fit_examples": fit_size,
                 "eval_examples": eval_size,
                 "by_level": {},
@@ -489,12 +497,13 @@ def run_latent_diagnostics(
                     "ce_by_layer": [float(x) for x in ce[r_index].tolist()],
                 }
             output["linear_probe"] = probe
-        if cfg.diagnostics.synonym_clustering:
+        if settings.synonym_clustering:
             score, d_syn, d_generic = _synonym_clustering(
                 model,
                 diagnostic_split,
                 rules,
                 cfg=cfg,
+                settings=settings,
                 levels=levels,
                 positions=positions,
                 original_features=original_features,
@@ -518,6 +527,7 @@ def run_latent_diagnostics(
                 diagnostic_split,
                 rules,
                 cfg=cfg,
+                settings=settings,
                 levels=levels,
                 positions=positions,
                 original_features=original_features,
@@ -533,7 +543,7 @@ def run_latent_diagnostics(
                             float(x)
                             for x in (
                                 variable_distance[r_index]
-                                / variable_generic[r_index].clamp_min(cfg.diagnostics.eps)
+                                / variable_generic[r_index].clamp_min(settings.eps)
                             ).tolist()
                         ],
                         "variable_distance_by_layer": [

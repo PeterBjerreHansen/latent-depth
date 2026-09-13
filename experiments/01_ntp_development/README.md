@@ -12,7 +12,7 @@ fixed residual-target experiment in Stage 02.
 - Per-epoch training pool `P=65,536`, fixed validation/test pools, and the
   full 2 × 2 grammar/model seed factorial in `configs/replication.json`.
 - Evaluation every 250 optimizer updates, including step zero.
-- Exact checkpoint snapshots every 500 updates through step 5,000.
+- Model-only diagnostic snapshots every 500 updates through step 5,000.
 - Offline probes on the embedding stream and all eight post-block streams.
   Shuffled-label controls are optional and do not define acquisition.
 
@@ -66,15 +66,15 @@ after looking at the results.
 Run from the repository root, on MPS when available:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_data_size.py \
+PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python sweep_data_size.py \
   --config experiments/01_ntp_development/configs/replication.json \
   --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates
 ```
 
-Diagnose every exact-step checkpoint for each confirmation run:
+Diagnose every model snapshot for each confirmation run:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
+PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python diagnose_trajectory.py \
   --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536 \
   --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory \
   --controls
@@ -85,7 +85,7 @@ Repeat the command for the other three `grammar_*/model_*` directories. The
 can be made with:
 
 ```bash
-python plot_trajectory.py \
+.venv/bin/python plot_trajectory.py \
   --trajectory RUN/trajectory/trajectory.json \
   --metrics RUN/metrics.json \
   --output RUN/trajectory/trajectory.png
@@ -100,13 +100,18 @@ sync with the raw data.
 
 The report must include:
 
-- held-out mean and per-position NTP NLL;
+- fixed-validation mean and per-position NTP NLL;
 - balanced accessibility curves and fixed-threshold onset/confirmation;
 - the persistent 50/75/90% probe milestones;
 - layerwise clustering, intervention distances, and `Q`;
-- grammar/model seeds, checkpoint schedule, exposure accounting, and runtime;
+- grammar/model seeds, snapshot schedule and exposure accounting;
 - a clear **go**, **no-go**, or **rerun baseline** decision.
 
 The results report should distinguish observed events from levels not confirmed
 by the final checkpoint. H1 is useful context because local token information
 can make it accessible early; H2 and H3 provide the main developmental gate.
+
+The recorded Stage-01 results predate the snapshot refactor. New runs use the
+current config and model-only snapshots; old model artifacts are not accepted
+by the current loader. Supporting C/Q diagnostics can be run separately with
+`--metric clustering --every-updates 500` into a separate output directory.

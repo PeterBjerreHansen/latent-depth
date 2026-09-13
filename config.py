@@ -60,15 +60,6 @@ class ModelConfig:
 
 
 @dataclass
-class ObjectiveConfig:
-    mode: str = "next_token"
-
-    def validate(self) -> None:
-        if self.mode != "next_token":
-            raise ValueError("objective mode only supports 'next_token'")
-
-
-@dataclass
 class AuxiliaryConfig:
     """Optional fixed-depth next-latent auxiliary objective.
 
@@ -130,10 +121,8 @@ class OptimConfig:
 class DiagnosticsConfig:
     """Optional observers for the frozen causal representation."""
 
-    enabled: bool = False
     linear_probe: bool = True
     synonym_clustering: bool = True
-    every_evals: int = 1
     num_sequences: int = 1024
     probe_steps: int = 300
     probe_lr: float = 1e-3
@@ -141,8 +130,6 @@ class DiagnosticsConfig:
     eps: float = 1e-8
 
     def validate(self) -> None:
-        if self.every_evals <= 0:
-            raise ValueError("diagnostics.every_evals must be positive")
         if self.num_sequences < 4:
             raise ValueError("diagnostics.num_sequences must be at least 4")
         if self.probe_steps <= 0:
@@ -151,7 +138,7 @@ class DiagnosticsConfig:
             raise ValueError("diagnostics.probe_lr must be positive")
         if self.eps <= 0:
             raise ValueError("diagnostics.eps must be positive")
-        if self.enabled and not (self.linear_probe or self.synonym_clustering):
+        if not (self.linear_probe or self.synonym_clustering):
             raise ValueError("enabled diagnostics require at least one metric")
 
 
@@ -168,10 +155,9 @@ class TrainConfig:
     device: str = "auto"
     deterministic: bool = True
     deterministic_strict: bool = False
-    # Set false for metrics-only runs. This disables best, last, and exact-step
-    # model-state files while preserving the training metrics output.
+    # Set false for metrics-only runs; disables all model-state files.
     save_checkpoints: bool = True
-    checkpoint_every_evals: Optional[int] = None
+    diagnostic_snapshot_every_updates: Optional[int] = None
     checkpoint_every_updates: Optional[int] = None
 
     def validate(self) -> None:
@@ -181,8 +167,8 @@ class TrainConfig:
             raise ValueError("eval_every_updates must be positive when provided")
         if self.max_updates is not None and self.max_updates <= 0:
             raise ValueError("max_updates must be positive when provided")
-        if self.checkpoint_every_evals is not None and self.checkpoint_every_evals <= 0:
-            raise ValueError("checkpoint_every_evals must be positive when provided")
+        if self.diagnostic_snapshot_every_updates is not None and self.diagnostic_snapshot_every_updates <= 0:
+            raise ValueError("diagnostic_snapshot_every_updates must be positive when provided")
         if self.checkpoint_every_updates is not None and self.checkpoint_every_updates <= 0:
             raise ValueError("checkpoint_every_updates must be positive when provided")
         if self.deterministic_strict and not self.deterministic:
@@ -196,10 +182,8 @@ class ExperimentConfig:
     rhm: RHMConfig = field(default_factory=RHMConfig)
     data: DataConfig = field(default_factory=DataConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
-    objective: ObjectiveConfig = field(default_factory=ObjectiveConfig)
     auxiliary: AuxiliaryConfig = field(default_factory=AuxiliaryConfig)
     optim: OptimConfig = field(default_factory=OptimConfig)
-    diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
     model_seed: int = 0
 
@@ -208,22 +192,18 @@ class ExperimentConfig:
         self.data.validate()
         self.model.validate()
         self.optim.validate()
-        self.diagnostics.validate()
         self.train.validate()
-        self.objective.validate()
         self.auxiliary.validate(n_layer=self.model.n_layer)
-        if self.diagnostics.enabled and self.diagnostics.synonym_clustering and self.rhm.m < 2:
-            raise ValueError("synonym-clustering diagnostics require RHM m >= 2")
-        if self.diagnostics.enabled and self.rhm.L < 2:
-            raise ValueError("latent diagnostics require RHM depth L >= 2")
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> "ExperimentConfig":
+        unknown = set(d) - set(cls.__dataclass_fields__)
+        if unknown:
+            raise ValueError(f"unknown experiment fields: {sorted(unknown)}")
         cfg = cls(
             rhm=RHMConfig(**d.get("rhm", {})),
             data=DataConfig(**d.get("data", {})),
             model=ModelConfig(**d.get("model", {})),
-            objective=ObjectiveConfig(**d.get("objective", {})),
             auxiliary=AuxiliaryConfig(**d.get("auxiliary", {})),
             optim=OptimConfig(
                 **{
@@ -231,7 +211,6 @@ class ExperimentConfig:
                     "betas": tuple(d.get("optim", {}).get("betas", (0.9, 0.95))),
                 }
             ),
-            diagnostics=DiagnosticsConfig(**d.get("diagnostics", {})),
             train=TrainConfig(**d.get("train", {})),
             model_seed=d.get("model_seed", 0),
         )

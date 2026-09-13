@@ -9,7 +9,6 @@ inference.
 
 from __future__ import annotations
 
-import inspect
 import math
 from dataclasses import dataclass
 
@@ -142,7 +141,7 @@ class GPT(nn.Module):
             if name.endswith("c_proj.weight"):
                 torch.nn.init.normal_(parameter, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
 
-        number_of_parameters = self.get_num_params()
+        number_of_parameters = sum(p.numel() for p in self.parameters())
         print(f"number of parameters: {number_of_parameters / 1e6:.2f}M")
 
     def _init_weights(self, module: nn.Module) -> None:
@@ -152,16 +151,6 @@ class GPT(nn.Module):
                 torch.nn.init.zeros_(module.bias)
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-
-    def get_num_params(self, non_embedding: bool = True) -> int:
-        number_of_parameters = sum(parameter.numel() for parameter in self.parameters())
-        if non_embedding:
-            number_of_parameters -= self.transformer.wpe.weight.numel()
-        return number_of_parameters
-
-    def num_parameters(self) -> int:
-        """Compatibility alias for the training and reporting code."""
-        return self.get_num_params(non_embedding=False)
 
     def forward(
         self,
@@ -212,58 +201,3 @@ class GPT(nn.Module):
         if hidden_states is not None:
             return logits, loss, hidden_states, x
         return logits, loss
-
-    def crop_block_size(self, block_size: int) -> None:
-        if block_size <= 0 or block_size > self.config.block_size:
-            raise ValueError("new block size must be positive and no larger than the current block size")
-        self.config.block_size = block_size
-        self.transformer.wpe.weight = nn.Parameter(self.transformer.wpe.weight[:block_size])
-        for block in self.transformer.h:
-            attention = block.attn
-            if not attention.flash:
-                attention.bias = attention.bias[:, :, :block_size, :block_size]
-
-    def configure_optimizers(
-        self,
-        weight_decay: float,
-        learning_rate: float,
-        betas: tuple[float, float],
-        device_type: str,
-    ) -> torch.optim.Optimizer:
-        parameter_dict = {name: parameter for name, parameter in self.named_parameters() if parameter.requires_grad}
-        decay_parameters = [parameter for name, parameter in parameter_dict.items() if parameter.dim() >= 2]
-        nodecay_parameters = [parameter for name, parameter in parameter_dict.items() if parameter.dim() < 2]
-        optim_groups = [
-            {"params": decay_parameters, "weight_decay": weight_decay},
-            {"params": nodecay_parameters, "weight_decay": 0.0},
-        ]
-        fused_available = "fused" in inspect.signature(torch.optim.AdamW).parameters
-        use_fused = fused_available and device_type == "cuda"
-        extra_args = {"fused": True} if use_fused else {}
-        return torch.optim.AdamW(optim_groups, lr=learning_rate, betas=betas, **extra_args)
-
-    @torch.no_grad()
-    def generate(
-        self,
-        idx: torch.Tensor,
-        max_new_tokens: int,
-        temperature: float = 1.0,
-        top_k: int | None = None,
-    ) -> torch.Tensor:
-        if max_new_tokens < 0:
-            raise ValueError("max_new_tokens must be nonnegative")
-        if temperature <= 0:
-            raise ValueError("temperature must be positive")
-        for _ in range(max_new_tokens):
-            idx_cond = idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size :]
-            logits, _ = self(idx_cond)
-            logits = logits[:, -1, :] / temperature
-            if top_k is not None:
-                if top_k <= 0:
-                    raise ValueError("top_k must be positive")
-                values, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < values[:, [-1]]] = float("-inf")
-            probabilities = F.softmax(logits, dim=-1)
-            next_token = torch.multinomial(probabilities, num_samples=1)
-            idx = torch.cat((idx, next_token), dim=1)
-        return idx

@@ -66,7 +66,8 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True, help="JSON target-depth sweep config")
     parser.add_argument("--output-dir", required=True)
-    parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--resume", action="store_true", help="skip completed arms")
+    parser.add_argument("--arms", nargs="+", help="run only these arm names from the configured screen")
     args = parser.parse_args()
 
     sweep = TargetDepthSweepConfig.from_json(args.config)
@@ -75,6 +76,9 @@ def main() -> None:
             "target-depth sweep base experiment must use auxiliary.mode='none'; "
             "the sweep enables it per target arm"
         )
+
+    if args.arms and set(args.arms) - {arm_name(layer) for layer in sweep.target_layers}:
+        raise ValueError("--arms contains an arm outside the configured screen")
 
     out = Path(args.output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -132,13 +136,13 @@ def main() -> None:
         )
         grammar_dir = out / f"grammar_{grammar_seed}"
         grammar_dir.mkdir(parents=True, exist_ok=True)
-        torch.save(bundle.rules, grammar_dir / "rules.pt")
         train_ds = LeafSequenceDataset(bundle.train.leaves)
         val_ds = LeafSequenceDataset(bundle.val.leaves)
-        test_ds = LeafSequenceDataset(bundle.test.leaves)
 
         for model_seed in grammar_model_seeds:
             for target_layer in sweep.target_layers:
+                if args.arms and arm_name(target_layer) not in args.arms:
+                    continue
                 key = (grammar_seed, model_seed, target_layer)
                 if key in completed:
                     print("skip completed", key)
@@ -167,9 +171,7 @@ def main() -> None:
                     cfg,
                     train_ds,
                     val_ds,
-                    test_ds,
                     output_dir=run_dir,
-                    diagnostic_split=bundle.val if cfg.diagnostics.enabled else None,
                     rules=bundle.rules,
                 )
                 row = {k: v for k, v in metrics.items() if k != "history"}

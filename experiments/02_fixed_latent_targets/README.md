@@ -1,182 +1,92 @@
-# Stage 02: fixed auxiliary target depth
+# Stage 02: stronger fixed auxiliary target depth
 
-Stage 01 supplies the NTP baseline. Stage 02 asks the first empirical
-comparison question:
+The current screen establishes whether stronger auxiliary weighting makes
+target-depth differences resolvable for later continuation experiments.
+The old lambda=0.3 run is retired; its compact factual record is
+[retired_lambda_0_3.json](retired_lambda_0_3.json). Its large artifacts are removed.
 
-> At the same training exposure, do different auxiliary targets make
-> particular hierarchy levels accessible earlier?
+## Frozen training protocol
 
-The runnable experiment is a fixed-target screen. It does not implement
-adaptive target switching, target mixtures, EMA teachers, or a universal
-“solved” label.
+Use [target_depth_screen_lambda_1_0.json](configs/target_depth_screen_lambda_1_0.json):
 
-## Training objective
+- NTP and fixed residual targets j=0,1,2,4,6, with auxiliary weight 1.0.
+- RHM v=n=16, m=4, s=2, L=5; grammar/model seed 0.
+- Eight blocks, eight heads, width 256, dropout zero.
+- Fresh 65,536-sequence pool each epoch; fixed validation/test pools of 16,384.
+- Batch 256, AdamW learning rate 3e-4, existing betas and gradient clipping.
+- 5,000 updates; validation and model-only snapshots every 100, including zero.
+- Full continuation checkpoints every 500 updates, plus the final state.
 
-Every arm keeps ordinary causal next-token prediction active. For a fixed
-residual-stream target depth `j`,
+All arms share initialization and data ordering. The target is the detached
+next-position residual stream; the source is the final residual stream at the
+preceding position. Grammar latents are diagnostic labels only.
 
-\[
-\mathcal L = \mathcal L_{\mathrm{NTP}} +
-\lambda\mathcal L_{\mathrm{aux}}^{(j)}.
-\]
+## Frozen diagnostic protocol
 
-The auxiliary predictor maps the final residual stream at position `t` to the
-detached residual stream at position `t+1`. `j=0` is the token-plus-position
-embedding stream; `j=1,...,8` are post-block streams; the final LayerNorm
-output is not a target. Ground-truth RHM latents remain observer diagnostics,
-not training targets. Because residual streams carry token and position
-information, especially at `j=0`, interpret a shallow-target result
-cautiously.
+The calibration record is [probe_calibration.json](probe_calibration.json).
+The initial 1,024/300 budget was materially sensitive to fitting and sample size.
+The chosen settings in [probe_settings.json](probe_settings.json) use 16,384
+validation sequences (8,192 fit / 8,192 evaluation), 3,000 fitting steps, learning
+rate 0.01 and probe seed 12345. These settings agreed closely with much longer
+fits at the old learning rate on the checked H3 states. Split-seed uncertainty
+remains; grid spacing is not a statistical confidence interval.
 
-## Runnable L5 screen
+The primary [acquisition rule](acquisition_rule.json) uses balanced accuracy
+0.75 and two consecutive same-layer observations. On the new 100-update grid,
+confirmation spans 100 updates. Report 50/75/90% milestones as sensitivity
+summaries, not alternative primary outcomes. Do not treat differences from the
+retired 250-update/old-probe screen as a pure effect of lambda.
 
-The committed screen is
-[`configs/target_depth_screen_lambda_0_3.json`](configs/target_depth_screen_lambda_0_3.json).
-It uses the Stage-01 exposure regime:
+The primary trajectory is probe-only. Run C/Q and shuffled controls separately
+at selected ages. Missing supporting diagnostics are not acquisition failures.
+Compare matched-update validation NLL curves; best validation CE is secondary.
+Test evaluation is explicit and should follow development/model selection.
 
-- `v=n=16`, `m=4`, `s=2`, `L=5`;
-- fresh `P=65,536` training pool each epoch and fixed validation/test pools;
-- eight blocks, width 256, batch size 256, AdamW with learning rate `3e-4`;
-- 10,000 optimizer updates, evaluation every 250 updates including step zero;
-- exact diagnostic checkpoints every 250 updates; and
-- NTP plus fixed target depths `j=0,...,8`.
-
-The screen uses `lambda=0.3`, grammar seed 0, and model seed 0. All arms share
-the same grammar, data schedule, and training exposure. `lambda=1.0` is an
-exploratory follow-up; add its explicit config only after the active L5 result
-is reviewed if the result warrants a stronger weight-sensitivity question. A deeper `L=6`
-screen is likewise a later, separately justified experiment rather than part
-of this runnable core.
-
-## Primary analysis
-
-The committed rule in [`acquisition_rule.json`](acquisition_rule.json) uses
-balanced probe accuracy with one preselected primary threshold, currently
-`0.75`. An accessibility event is the first checkpoint at or above that
-threshold followed by a second checkpoint at or above it at the same observer
-layer. The earliest observed layer supplies `tau_accessibility`; the analysis
-retains the full layerwise curves and events. The 50%, 75%, and 90% probe
-milestones use the same two-checkpoint persistence rule and are reported to
-show threshold dependence.
-
-In addition to each level's absolute onset `tau_l` and arm-minus-NTP onset
-difference, the comparison reports every consecutive transition present in the
-diagnostics. For `l-1 -> l`, it records the arm interval
-`tau_l - tau_l-1`, the corresponding NTP interval, and the difference between
-those intervals. This separates acceleration of an earlier level from a
-specific shortening or lengthening of the transition itself. A transition is
-unavailable if either endpoint is not persistently observed; no censoring bound
-is inferred.
-
-Synonym clustering and the latent-replacement contrast `Q` are explanatory
-diagnostics. Shuffled-label probes are optional controls. Neither clustering,
-`Q`, nor a control margin is an acquisition hurdle. If an event is not observed
-by the final checkpoint, report “not confirmed by step T”. Numeric onset
-differences are available only when both paired events are observed; otherwise
-the difference is explicitly unavailable. Do not derive censoring bounds from
-backdated onset candidates.
-
-Validation cross-entropy is reported at matched optimizer updates and remains
-the model-selection quantity. Auxiliary and total losses are training
-observables. The analysis does not declare an arm failed because its best CE
-differs by a fixed post hoc amount; interpret matched costs alongside the
-accessibility result.
-
-Partial screens are valid. A comparison must contain the NTP arm and at least
-one target arm, and records `targets_present` so missing targets are visible.
-It need not contain the full target-depth grid.
-
-## Run and analyze
+## Run one arm through the full workflow, then the rest
 
 From the repository root:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=0 python sweep_target_depth.py \
-  --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_0_3.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates
-```
-
-Diagnose each arm from its exact-step checkpoints. The controls are optional;
-when requested, `--controls` adds the trained-backbone shuffled-label probe.
-
-```bash
-for arm in ntp target_0 target_1 target_2 target_3 target_4 target_5 target_6 target_7 target_8; do
-  screen=target_depth_l5_lambda_0_3_10000_updates
-  PYTORCH_ENABLE_MPS_FALLBACK=0 python diagnose_trajectory.py \
-    --run-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm \
-    --output-dir experiments/02_fixed_latent_targets/runs/$screen/grammar_0/model_0/$arm/trajectory \
-    --device mps --num-sequences 1024 --probe-steps 300 --controls
+screen=experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_1_0_sparse_5000_updates
+config=experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_1_0.json
+for arm in ntp target_0 target_1 target_2 target_4 target_6; do
+  PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python -u sweep_target_depth.py \
+    --config "$config" --output-dir "$screen" --arms "$arm" --resume
+  run=$screen/grammar_0/model_0/$arm
+  PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python -u diagnose_trajectory.py \
+    --run-dir "$run" --output-dir "$run/trajectory" --device mps \
+    --metric probe --num-sequences 16384 --probe-steps 3000 \
+    --probe-lr 0.01 --probe-seed 12345
+  PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python -u diagnose_trajectory.py \
+    --run-dir "$run" --output-dir "$run/supporting" --device mps \
+    --metric clustering --num-sequences 1024 --steps 0 2500 5000
 done
-```
-
-Run the single comparison analysis entry point. It loads the raw
-`trajectory.json` files, applies the rule in memory, writes a compact table,
-and does not create or consume per-arm acquisition summaries:
-
-```bash
-python summarize_target_depth.py \
-  --screen-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates \
+.venv/bin/python summarize_target_depth.py --screen-dir "$screen" \
   --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates/analysis
-
-python plot_trajectory.py \
-  --comparison experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates/analysis/comparison.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates/analysis/plots
+  --output-dir "$screen/analysis"
+.venv/bin/python plot_trajectory.py --comparison "$screen/analysis/comparison.json" \
+  --output-dir "$screen/analysis/plots"
 ```
 
-The comparison contains absolute accessibility times, exact paired differences
-when available, adjacent-level transition intervals and their NTP-relative
-differences, matched-update validation CE, exposure accounting, and the targets
-present in each group. `acquisition_times.png` shows absolute level times and
-level-time differences; `transition_intervals.png` shows the absolute
-`l-1 -> l` intervals and their differences versus NTP. Layerwise curves are
-plotted in observer-layer panels for every available arm, so a
-not-confirmed NTP event cannot hide auxiliary movement at another layer.
+Use `set -e` when executing the sequence as a script so a failed arm or diagnostic
+stops the screen. Inspect the first arm's metrics and complete probe output
+before moving on. Sweep `--resume` skips complete arms; interrupted training can
+be continued explicitly with `train.py --resume-from` and its resolved config.
 
-The controls are optional; when requested, `--controls` adds the trained-backbone
-shuffled-label probe.
+For a selected shuffled control, run `diagnose.py --controls --metric probe`
+with the same probe budget into a separate file. Avoid fitting controls at every
+age. `records.jsonl` contains raw measurements; trajectory/analysis files are
+derived views. Keep compact final evidence and config with the experiment;
+model-state files remain local.
 
-## Archive lightweight results
+## Next decisions
 
-The `runs/` directory is ignored so model checkpoints remain local. To commit
-the reproducible logs and derived results without staging checkpoints, force-add
-only the following allowlist:
+Clear separation with useful NTP learning motivates replication of an
+informative shallow/deeper subset on new seeds. Weak separation with reliable
+probes and stable training motivates another increase in lambda on a reduced
+subset. Disrupted NTP learning motivates an intermediate lambda. Extend the
+paired budget only if relevant transitions remain unresolved at the endpoint.
 
-```bash
-run=experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_0_3_10000_updates
-git add -f \
-  "$run"/sweep_config.json \
-  "$run"/metrics.jsonl \
-  "$run"/grammar_0/model_0/*/config.json \
-  "$run"/grammar_0/model_0/*/metrics.json \
-  "$run"/grammar_0/model_0/*/trajectory/trajectory.json \
-  "$run"/analysis/comparison.json \
-  "$run"/analysis/validation_ce_by_step.csv \
-  "$run"/analysis/validation_ce_delta_vs_ntp.csv \
-  "$run"/analysis/transition_intervals.csv \
-  "$run"/analysis/plots/*.png
-```
-
-This records the resolved configs, training metrics, consolidated trajectories,
-comparison tables, transition diagnostics, and plots. It intentionally excludes
-all model checkpoints, optimizer states, and redundant per-checkpoint JSON
-files.
-
-
-## Interpretation and follow-up
-
-The main comparison is the ranking of fixed target depths at the same exposure.
-A target that advances H2 but not H3, or one that advances H3 without delaying
-H2, would support a depth-specific developmental effect. The adjacent-level
-intervals add an important check: an earlier H3 can simply inherit an earlier
-H2, or it can reflect a genuinely shorter H2-to-H3 transition. A common winner
-or uniform acceleration is still a useful fixed-target result but gives weaker
-motivation for adaptive switching. A probe milestone without persistent
-threshold accessibility is reported as a probe result, not as an acquisition
-claim.
-
-After the L5 screen is summarized and reviewed, a separate weight-sensitivity
-screen or an extended hierarchy can be justified if the scientific question
-requires it. Keep those follow-ups small and explicit. Do not add adaptive
-target policies until a fixed-target effect is replicated across the intended
-seed comparison.
+Shared-state continuation experiments follow calibration and replication.
+Predictor preparation and optimizer handling must be specified there. Adaptive
+policies, freezing, drift controllers and automated parameter searches are deferred.

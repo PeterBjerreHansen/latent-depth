@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import copy
+import hashlib
+import inspect
+import json
+import os
 import math
 import random
 from pathlib import Path
@@ -15,9 +19,8 @@ from torch.utils.data import DataLoader, Dataset, Sampler
 
 from auxiliary import NextLatentPredictor, build_auxiliary_predictor, next_latent_loss
 from config import ExperimentConfig
-from diagnostics import run_latent_diagnostics
 from nanogpt import GPT, GPTConfig
-from rhm.dataset import LeafSequenceDataset, RHMSplit, sample_leaf_sequences
+from rhm.dataset import LeafSequenceDataset, sample_leaf_sequences
 from rhm.random_hierarchy_model import TensorDict
 from rhm.theory import loss_upper_bounds
 
@@ -269,43 +272,19 @@ def _make_optimizer(
     cfg: ExperimentConfig,
     predictor: NextLatentPredictor | None = None,
 ) -> torch.optim.Optimizer:
-    # Preserve the original NTP optimizer construction exactly when no
-    # auxiliary predictor exists.
-    if predictor is None:
-        if cfg.optim.name == "adam":
-            return torch.optim.Adam(
-                model.parameters(),
-                lr=cfg.optim.learning_rate,
-                betas=tuple(cfg.optim.betas),
-                weight_decay=cfg.optim.weight_decay,
-            )
-        return model.configure_optimizers(
-            weight_decay=cfg.optim.weight_decay,
-            learning_rate=cfg.optim.learning_rate,
-            betas=tuple(cfg.optim.betas),
-            device_type=next(model.parameters()).device.type,
-        )
-
     parameters = _optimizer_parameters(model, predictor)
     if cfg.optim.name == "adam":
-        return torch.optim.Adam(
-            parameters,
-            lr=cfg.optim.learning_rate,
-            betas=tuple(cfg.optim.betas),
-            weight_decay=cfg.optim.weight_decay,
-        )
-
-    decay = [parameter for parameter in parameters if parameter.dim() >= 2]
-    no_decay = [parameter for parameter in parameters if parameter.dim() < 2]
+        return torch.optim.Adam(parameters, lr=cfg.optim.learning_rate,
+                                betas=tuple(cfg.optim.betas), weight_decay=cfg.optim.weight_decay)
     groups = [
-        {"params": decay, "weight_decay": cfg.optim.weight_decay},
-        {"params": no_decay, "weight_decay": 0.0},
+        {"params": [p for p in parameters if p.dim() >= 2], "weight_decay": cfg.optim.weight_decay},
+        {"params": [p for p in parameters if p.dim() < 2], "weight_decay": 0.0},
     ]
-    return torch.optim.AdamW(
-        groups,
-        lr=cfg.optim.learning_rate,
-        betas=tuple(cfg.optim.betas),
-    )
+    extra = {}
+    if next(model.parameters()).device.type == "cuda" and "fused" in inspect.signature(torch.optim.AdamW).parameters:
+        extra["fused"] = True
+    return torch.optim.AdamW(groups, lr=cfg.optim.learning_rate,
+                             betas=tuple(cfg.optim.betas), **extra)
 
 
 def _set_warmup_lr(
@@ -336,15 +315,15 @@ def save_checkpoint(
     predictor: NextLatentPredictor | None = None,
     loader_states: Optional[dict[str, Any]] = None,
     trainer_state: Optional[dict[str, Any]] = None,
-    best_state: Optional[dict[str, torch.Tensor]] = None,
     rules: Optional[TensorDict] = None,
 ) -> None:
     """Save a self-contained training checkpoint, including auxiliary state."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     mps_rng = _mps_rng_state()
-    torch.save(
+    _save_torch(
         {
+            "artifact_type": "continuation",
             "model": _cpu_state_dict(model),
             "predictor": None if predictor is None else _cpu_state_dict(predictor),
             "optimizer": copy.deepcopy(optimizer.state_dict()),
@@ -355,7 +334,6 @@ def save_checkpoint(
             "metrics": metrics,
             "loader_states": loader_states or {},
             "trainer_state": trainer_state or {},
-            "best_model": best_state,
             "rng": {
                 "python": random.getstate(),
                 "numpy": np.random.get_state(),
@@ -398,32 +376,6 @@ def load_model_from_checkpoint(
     return model, cfg, ckpt
 
 
-def load_training_state(
-    path: str | Path,
-    device: str = "cpu",
-) -> tuple[GPT, ExperimentConfig, torch.optim.Optimizer, dict[str, Any]]:
-    """Load an NTP model, optimizer, and RNG state for exact continuation.
-
-    Auxiliary runs must be resumed through :func:`train_model`, which restores
-    the predictor module as part of the complete training state. This helper
-    intentionally exposes only the NTP continuation state.
-    """
-    ckpt = torch.load(path, map_location="cpu", weights_only=False)
-    cfg = ExperimentConfig.from_dict(ckpt["config"])
-    if cfg.auxiliary.mode != "none":
-        raise ValueError(
-            "load_training_state only supports NTP checkpoints; "
-            "resume auxiliary runs through train_model"
-        )
-    resolved_device = torch.device(device)
-    model = build_model(cfg).to(resolved_device)
-    model.load_state_dict(ckpt["model"], strict=True)
-    optimizer = _make_optimizer(model, cfg)
-    optimizer.load_state_dict(ckpt["optimizer"])
-    restore_rng_state(ckpt["rng"])
-    return model, cfg, optimizer, ckpt
-
-
 def _clip_parameters(
     model: GPT,
     predictor: NextLatentPredictor | None,
@@ -433,580 +385,252 @@ def _clip_parameters(
     return list(model.parameters()) + list(predictor.parameters())
 
 
+def _save_torch(payload: dict[str, Any], path: str | Path) -> None:
+    """Replace a file only after serialization succeeds."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + '.tmp')
+    torch.save(payload, temporary)
+    temporary.replace(path)
+
+
+def save_diagnostic_snapshot(
+    path: str | Path, *, model: GPT, cfg: ExperimentConfig,
+    epoch: int, global_step: int, grammar_path: Path,
+) -> None:
+    path = Path(path)
+    _save_torch({
+        "artifact_type": "diagnostic",
+        "model": _cpu_state_dict(model),
+        "config": cfg.to_dict(),
+        "epoch": epoch,
+        "global_step": global_step,
+        "grammar_file": os.path.relpath(grammar_path, path.parent),
+        "grammar_sha256": hashlib.sha256(grammar_path.read_bytes()).hexdigest(),
+    }, path)
+
+
+def artifact_rules(path: str | Path, artifact: dict[str, Any]) -> TensorDict:
+    """Read the exact stored grammar; detect missing or substituted run files."""
+    if artifact.get("rules") is not None:
+        return artifact["rules"]
+    grammar_path = Path(path).parent / artifact["grammar_file"]
+    if hashlib.sha256(grammar_path.read_bytes()).hexdigest() != artifact["grammar_sha256"]:
+        raise ValueError(f"snapshot grammar checksum mismatch: {grammar_path}")
+    return torch.load(grammar_path, map_location="cpu", weights_only=True)
+
+
 def train_model(
-    cfg: ExperimentConfig,
-    train_dataset: Dataset,
-    val_dataset: Dataset,
-    test_dataset: Dataset,
-    *,
+    cfg: ExperimentConfig, train_dataset: Dataset, val_dataset: Dataset, *,
     output_dir: Optional[str | Path] = None,
     resume_from: Optional[str | Path] = None,
-    diagnostic_split: Optional[RHMSplit] = None,
-    rules: Optional[TensorDict] = None,
-    verbose: bool = True,
+    rules: Optional[TensorDict] = None, verbose: bool = True,
 ) -> dict[str, Any]:
-    """Train one model and select the checkpoint with the best NTP validation NLL.
+    """Train to the requested budget; report validation without selecting a model.
 
-    The optional Stage-02 auxiliary objective affects training only.  Model
-    selection, validation metrics, test metrics, and representation diagnostics
-    remain defined by the causal NTP backbone exactly as in Stage 01.
-
-    When ``cfg.data.resample_train_each_epoch`` is enabled, ``rules`` must be
-    supplied and a fresh train pool is sampled deterministically before each
-    new epoch. Validation and test datasets remain fixed.
+    Test evaluation and representation diagnostics are separate offline operations.
+    Continuation checkpoints preserve the exact optimizer and data-stream state.
     """
     cfg.validate()
-    if len(train_dataset) != cfg.data.train_size:
-        raise ValueError(f"train dataset length {len(train_dataset)} != configured {cfg.data.train_size}")
-    if len(val_dataset) != cfg.data.val_size or len(test_dataset) != cfg.data.test_size:
-        raise ValueError("validation/test dataset sizes do not match configuration")
-    if cfg.diagnostics.enabled and (diagnostic_split is None or rules is None):
-        raise ValueError("enabled diagnostics require diagnostic_split and RHM rules")
-    if cfg.data.resample_train_each_epoch and rules is None:
-        raise ValueError("resampling the training pool requires RHM rules")
-
+    if len(train_dataset) != cfg.data.train_size or len(val_dataset) != cfg.data.val_size:
+        raise ValueError("training/validation dataset sizes do not match configuration")
+    if cfg.train.num_workers != 0:
+        raise ValueError("exact training continuation requires num_workers=0")
     device = resolve_device(cfg.train.device)
     out = Path(output_dir) if output_dir is not None else None
+    checkpoint = None
+    if resume_from is not None:
+        checkpoint = torch.load(resume_from, map_location="cpu", weights_only=False)
+        if checkpoint.get("artifact_type") != "continuation":
+            raise ValueError("resume requires a continuation checkpoint, not a diagnostic snapshot")
+        saved = copy.deepcopy(checkpoint["config"])
+        for field in ("max_epochs", "max_updates"):
+            saved["train"][field] = cfg.to_dict()["train"][field]
+        if saved != cfg.to_dict():
+            raise ValueError("resume checkpoint configuration does not match requested configuration")
+        saved_rules = checkpoint.get("rules")
+        if rules is not None and saved_rules is not None and not _rules_equal(rules, saved_rules):
+            raise ValueError("resume checkpoint RHM rules do not match supplied rules")
+        if rules is None:
+            rules = saved_rules
+    if cfg.data.resample_train_each_epoch and rules is None:
+        raise ValueError("resampling training requires RHM rules")
     if out is not None:
         out.mkdir(parents=True, exist_ok=True)
+        if cfg.train.save_checkpoints and cfg.train.diagnostic_snapshot_every_updates is not None and rules is None:
+            raise ValueError("diagnostic snapshots require RHM rules")
+        if rules is not None:
+            grammar_path = out / 'rules.pt'
+            if grammar_path.exists():
+                existing = torch.load(grammar_path, map_location='cpu', weights_only=True)
+                if not _rules_equal(existing, rules):
+                    raise ValueError("run directory contains different RHM rules")
+            else:
+                _save_torch(_cpu_tensor_dict(rules), grammar_path)
+        (out / 'config.json').write_text(json.dumps(cfg.to_dict(), indent=2) + '\n')
 
-    resume_rng: Optional[dict[str, Any]] = None
-    if resume_from is None:
-        seed_everything(
-            cfg.model_seed,
-            cfg.train.deterministic,
-            cfg.train.deterministic_strict,
-        )
-        # Build GPT first.  Auxiliary predictor construction forks CPU RNG so
-        # adding an auxiliary head cannot alter the backbone initialization or
-        # subsequent training RNG stream.
-        model = build_model(cfg).to(device)
-        predictor = build_auxiliary_predictor(cfg, device)
-        optimizer = _make_optimizer(model, cfg, predictor)
-        train_sampler_generator = torch.Generator(device="cpu").manual_seed(cfg.model_seed + 17)
-        train_loader_generator = torch.Generator(device="cpu").manual_seed(cfg.model_seed + 19)
-        train_sampler = StatefulRandomSampler(len(train_dataset), train_sampler_generator)
-        start_epoch = 1
-        global_step = 0
-        best_val = float("inf")
-        best_epoch = 0
-        best_step = 0
-        best_state: Optional[dict[str, torch.Tensor]] = None
-        history: list[dict[str, Any]] = []
-        eval_count = 0
-        samples_seen = 0
-        last_train_ce = float("inf")
-        last_val_ce = float("inf")
-        last_val_nll_by_position: list[float] = []
-    else:
-        checkpoint = torch.load(resume_from, map_location="cpu", weights_only=False)
-        checkpoint_rules = checkpoint.get("rules")
-        if checkpoint_rules is not None and rules is not None and not _rules_equal(checkpoint_rules, rules):
-            raise ValueError("resume checkpoint RHM rules do not match supplied rules")
-        saved_cfg = ExperimentConfig.from_dict(checkpoint["config"])
-        saved_cfg_dict = saved_cfg.to_dict()
-        requested_cfg_dict = cfg.to_dict()
-        for field_name in ("max_epochs", "max_updates"):
-            saved_cfg_dict["train"][field_name] = requested_cfg_dict["train"][field_name]
-        if saved_cfg_dict != requested_cfg_dict:
-            raise ValueError("resume checkpoint configuration does not match requested configuration")
-        model = build_model(cfg).to(device)
-        model.load_state_dict(checkpoint["model"], strict=True)
-        predictor = build_auxiliary_predictor(cfg, device)
-        predictor_state = checkpoint.get("predictor")
-        if predictor is None:
-            if predictor_state is not None:
-                raise ValueError("NTP checkpoint unexpectedly contains auxiliary predictor state")
-        else:
-            if predictor_state is None:
-                raise ValueError("auxiliary checkpoint is missing predictor state")
-            predictor.load_state_dict(predictor_state, strict=True)
-        optimizer = _make_optimizer(model, cfg, predictor)
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        train_sampler_generator = torch.Generator(device="cpu")
-        train_loader_generator = torch.Generator(device="cpu")
-        loader_states = checkpoint.get("loader_states", {})
-        saved_sampler_state = loader_states.get("train_sampler")
-        if saved_sampler_state is None:
-            train_sampler_generator.manual_seed(cfg.model_seed + 17)
-            train_sampler = StatefulRandomSampler(len(train_dataset), train_sampler_generator)
-        else:
-            train_sampler = StatefulRandomSampler(len(train_dataset), train_sampler_generator)
-            train_sampler.load_state_dict(saved_sampler_state)
-        saved_loader_state = loader_states.get("train_loader")
-        if saved_loader_state is None:
-            train_loader_generator.manual_seed(cfg.model_seed + 19)
-        else:
-            train_loader_generator.set_state(saved_loader_state)
-        resume_rng = checkpoint.get("rng")
-        saved_trainer_state = checkpoint.get("trainer_state", {})
-        sampler_position = train_sampler.position
-        checkpoint_epoch = int(checkpoint["epoch"])
-        start_epoch = (
-            max(checkpoint_epoch, 1)
-            if sampler_position < len(train_dataset)
-            else checkpoint_epoch + 1
-        )
-        if cfg.data.resample_train_each_epoch:
-            train_dataset = LeafSequenceDataset(
-                sample_leaf_sequences(
-                    len(train_dataset),
-                    rules,
-                    seed=_resampled_train_seed(cfg.rhm.train_seed, start_epoch),
-                )
-            )
-        global_step = int(checkpoint["global_step"])
-        best_val = float(saved_trainer_state.get("best_val", float("inf")))
-        best_epoch = int(saved_trainer_state.get("best_epoch", 0))
-        best_step = int(saved_trainer_state.get("best_step", 0))
-        best_state = checkpoint.get("best_model") or _cpu_state_dict(model)
-        history = list(saved_trainer_state.get("history", []))
-        eval_count = int(saved_trainer_state.get("eval_count", len(history)))
-        samples_seen = int(saved_trainer_state.get("samples_seen", global_step * cfg.train.batch_size))
-        last_train_ce = float(saved_trainer_state.get("last_train_ce", float("inf")))
-        last_val_ce = float(saved_trainer_state.get("last_val_ce", float("inf")))
-        last_val_nll_by_position = list(saved_trainer_state.get("last_val_nll_by_position", []))
+    seed_everything(cfg.model_seed, cfg.train.deterministic, cfg.train.deterministic_strict)
+    model = build_model(cfg).to(device)
+    predictor = build_auxiliary_predictor(cfg, device)
+    optimizer = _make_optimizer(model, cfg, predictor)
+    sampler_generator = torch.Generator(device='cpu').manual_seed(cfg.model_seed + 17)
+    loader_generator = torch.Generator(device='cpu').manual_seed(cfg.model_seed + 19)
+    sampler = StatefulRandomSampler(len(train_dataset), sampler_generator)
+    history: list[dict[str, Any]] = []
+    global_step = samples_seen = 0
+    start_epoch = 1
+    running = dict(ntp=0.0, aux=0.0, total=0.0, seen=0)
+    resume_partial = False
+    if checkpoint is not None:
+        model.load_state_dict(checkpoint['model'])
+        if predictor is not None:
+            predictor.load_state_dict(checkpoint['predictor'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+        sampler.load_state_dict(checkpoint['loader_states']['train_sampler'])
+        loader_generator.set_state(checkpoint['loader_states']['train_loader'])
+        state = checkpoint['trainer_state']
+        history = state['history']
+        samples_seen = state['samples_seen']
+        global_step = checkpoint['global_step']
+        resume_partial = 0 < sampler.position < len(train_dataset)
+        start_epoch = max(1, checkpoint['epoch']) if sampler.position < len(train_dataset) else checkpoint['epoch'] + 1
+        if resume_partial:
+            running = state['running']
+        restore_rng_state(checkpoint['rng'])
+    val_loader = make_loader(val_dataset, batch_size=cfg.train.batch_size, shuffle=False,
+                             num_workers=0, seed=0, device=device)
+    updates_per_epoch = math.ceil(len(train_dataset) / min(cfg.train.batch_size, len(train_dataset)))
+    warmup_updates = math.ceil(cfg.optim.warmup_epochs * updates_per_epoch)
 
-    train_loader = make_loader(
-        train_dataset,
-        batch_size=cfg.train.batch_size,
-        shuffle=False,
-        num_workers=cfg.train.num_workers,
-        seed=cfg.model_seed + 17,
-        device=device,
-        generator=train_loader_generator,
-        sampler=train_sampler,
-    )
-    train_eval_loader = make_loader(
-        train_dataset,
-        batch_size=cfg.train.batch_size,
-        shuffle=False,
-        num_workers=cfg.train.num_workers,
-        seed=0,
-        device=device,
-    )
-    val_loader = make_loader(
-        val_dataset,
-        batch_size=cfg.train.batch_size,
-        shuffle=False,
-        num_workers=cfg.train.num_workers,
-        seed=0,
-        device=device,
-    )
-    test_loader = make_loader(
-        test_dataset,
-        batch_size=cfg.train.batch_size,
-        shuffle=False,
-        num_workers=cfg.train.num_workers,
-        seed=0,
-        device=device,
-    )
-
-    updates_per_epoch = len(train_loader)
-    if resume_rng is not None:
-        restore_rng_state(resume_rng)
-
-    warmup_updates = int(math.ceil(cfg.optim.warmup_epochs * updates_per_epoch))
-
-    def refresh_train_pool(next_epoch: int) -> None:
-        """Replace the finite training pool before the next epoch."""
-        nonlocal train_dataset, train_loader, train_eval_loader, train_sampler
-        if (
-            not cfg.data.resample_train_each_epoch
-            or next_epoch > cfg.train.max_epochs
-        ):
-            return
-        if rules is None:
-            raise RuntimeError("resampling the training pool requires RHM rules")
-        train_dataset = LeafSequenceDataset(
-            sample_leaf_sequences(
-                cfg.data.train_size,
-                rules,
-                seed=_resampled_train_seed(cfg.rhm.train_seed, next_epoch),
-            )
-        )
-        train_sampler = StatefulRandomSampler(
-            len(train_dataset), train_sampler_generator
-        )
-        train_loader = make_loader(
-            train_dataset,
-            batch_size=cfg.train.batch_size,
-            shuffle=False,
-            num_workers=cfg.train.num_workers,
-            seed=cfg.model_seed + 17,
-            device=device,
-            generator=train_loader_generator,
-            sampler=train_sampler,
-        )
-        train_eval_loader = make_loader(
-            train_dataset,
-            batch_size=cfg.train.batch_size,
-            shuffle=False,
-            num_workers=cfg.train.num_workers,
-            seed=0,
-            device=device,
-        )
-
-    def trainer_state() -> dict[str, Any]:
-        return {
-            "best_val": best_val,
-            "best_epoch": best_epoch,
-            "best_step": best_step,
-            "history": history,
-            "eval_count": eval_count,
-            "samples_seen": samples_seen,
-            "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
-            "last_train_ce": last_train_ce,
-            "last_val_ce": last_val_ce,
-            "last_val_nll_by_position": last_val_nll_by_position,
-        }
-
-    def loader_states() -> dict[str, Any]:
-        return {
-            "train_sampler": train_sampler.state_dict(),
-            "train_loader": train_loader_generator.get_state(),
-        }
-
-    def save_update_checkpoint_if_due(*, epoch: int) -> None:
-        """Save a checkpoint at an exact optimizer-step boundary when requested."""
-        interval = cfg.train.checkpoint_every_updates
-        if (
-            out is None
-            or not cfg.train.save_checkpoints
-            or interval is None
-            or global_step % interval != 0
-        ):
-            return
-        if history and int(history[-1]["global_step"]) == global_step:
-            metrics = dict(history[-1])
-        else:
-            metrics = {
-                "epoch": epoch,
-                "global_step": global_step,
-                "samples_seen": samples_seen,
-                "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
-            }
-        save_checkpoint(
-            out / "checkpoints" / f"step_{global_step:08d}.pt",
-            model=model,
-            predictor=predictor,
-            optimizer=optimizer,
-            cfg=cfg,
-            epoch=epoch,
-            global_step=global_step,
-            metrics=metrics,
-            loader_states=loader_states(),
-            trainer_state=trainer_state(),
-            best_state=best_state,
-            rules=rules,
-        )
-
-    last_evaluated_step: Optional[int] = None
-
-    def record_evaluation(
-        *,
-        epoch: int,
-        running_train_ce: Optional[float],
-        running_aux_loss: Optional[float],
-        running_total_loss: Optional[float],
-    ) -> None:
-        """Evaluate NTP, optionally diagnose, select, and checkpoint one state."""
-        nonlocal best_epoch, best_state, best_step, best_val, eval_count
-        nonlocal last_evaluated_step, last_train_ce, last_val_ce, last_val_nll_by_position
-
-        was_training = model.training
-        predictor_was_training = predictor.training if predictor is not None else None
-        try:
-            last_train_ce = evaluate(model, train_eval_loader, cfg, device)
-            last_val_ce, last_val_nll_by_position = evaluate_with_positions(
-                model, val_loader, cfg, device
-            )
-        finally:
-            model.train(was_training)
-            if predictor is not None and predictor_was_training is not None:
-                predictor.train(predictor_was_training)
-        next_eval_count = eval_count + 1
-        row: dict[str, Any] = {
-            "epoch": epoch,
-            "global_step": global_step,
-            "running_train_ce": running_train_ce,
-            "running_aux_loss": running_aux_loss,
-            "running_total_loss": running_total_loss,
-            "samples_seen": samples_seen,
-            "tokens_seen": samples_seen * (input_block_size(cfg) - 1),
-            "train_ce": last_train_ce,
-            "val_ce": last_val_ce,
-            "val_nll_by_position": [float(value) for value in last_val_nll_by_position],
-            "val_last_position_nll": last_val_nll_by_position[-1],
-            "lr": float(optimizer.param_groups[0]["lr"]),
-            "auxiliary_weight": (
-                float(cfg.auxiliary.weight) if cfg.auxiliary.mode != "none" else None
-            ),
-            "target_layer": cfg.auxiliary.target_layer,
-        }
-
-        if (
-            cfg.diagnostics.enabled
-            and next_eval_count % cfg.diagnostics.every_evals == 0
-            and diagnostic_split is not None
-            and rules is not None
-        ):
-            row["diagnostics"] = run_latent_diagnostics(
-                model,
-                diagnostic_split,
-                rules,
-                cfg,
-                device,
-            )
-
-        improved = last_val_ce < best_val
-        if improved:
-            best_val = last_val_ce
-            best_epoch = epoch
-            best_step = global_step
-            best_state = _cpu_state_dict(model)
-        history.append(row)
-        eval_count = next_eval_count
-        last_evaluated_step = global_step
-
+    def record_evaluation(epoch: int) -> None:
+        val_ce, positions = evaluate_with_positions(model, val_loader, cfg, device)
+        n = running['seen']
+        history.append({
+            'epoch': epoch, 'global_step': global_step,
+            'running_train_ce': running['ntp'] / n if n else None,
+            'running_aux_loss': running['aux'] / n if n and predictor is not None else None,
+            'running_total_loss': running['total'] / n if n else None,
+            'samples_seen': samples_seen, 'tokens_seen': samples_seen * (input_block_size(cfg) - 1),
+            'val_ce': val_ce, 'val_nll_by_position': positions, 'val_last_position_nll': positions[-1],
+            'lr': float(optimizer.param_groups[0]['lr']),
+            'auxiliary_weight': cfg.auxiliary.weight if predictor is not None else None,
+            'target_layer': cfg.auxiliary.target_layer,
+        })
+        if out is not None:
+            # Persist measurements during training; metrics.json marks a completed run.
+            (out / 'history.json').write_text(json.dumps(history, indent=2) + '\n')
         if verbose:
-            diagnostic_note = " +diagnostics" if "diagnostics" in row else ""
-            aux_note = (
-                f" aux={running_aux_loss:.6f}" if running_aux_loss is not None else ""
-            )
-            print(
-                f"epoch={epoch:4d} step={global_step:7d} "
-                f"train_ce={last_train_ce:.6f} val_ce={last_val_ce:.6f} "
-                f"lr={row['lr']:.3e}{aux_note}{diagnostic_note}"
-            )
+            print(f"epoch={epoch:4d} step={global_step:7d} val_ce={val_ce:.6f}", flush=True)
 
-        if out is not None and cfg.train.save_checkpoints:
-            if improved:
-                save_checkpoint(
-                    out / "best.pt",
-                    model=model,
-                    predictor=predictor,
-                    optimizer=optimizer,
-                    cfg=cfg,
-                    epoch=epoch,
-                    global_step=global_step,
-                    metrics=row,
-                    loader_states=loader_states(),
-                    trainer_state=trainer_state(),
-                    best_state=best_state,
-                    rules=rules,
-                )
-            if (
-                cfg.train.checkpoint_every_updates is None
-                and cfg.train.checkpoint_every_evals is not None
-                and eval_count % cfg.train.checkpoint_every_evals == 0
-            ):
-                save_checkpoint(
-                    out / "checkpoints" / f"step_{global_step:08d}.pt",
-                    model=model,
-                    predictor=predictor,
-                    optimizer=optimizer,
-                    cfg=cfg,
-                    epoch=epoch,
-                    global_step=global_step,
-                    metrics=row,
-                    loader_states=loader_states(),
-                    trainer_state=trainer_state(),
-                    best_state=best_state,
-                    rules=rules,
-                )
+    def save_full(path: Path, epoch: int) -> None:
+        metrics = history[-1] if history and history[-1]['global_step'] == global_step else {
+            'epoch': epoch, 'global_step': global_step, 'samples_seen': samples_seen,
+            'tokens_seen': samples_seen * (input_block_size(cfg) - 1),
+        }
+        save_checkpoint(path, model=model, predictor=predictor, optimizer=optimizer,
+                        cfg=cfg, epoch=epoch, global_step=global_step, metrics=metrics,
+                        rules=rules,
+                        loader_states={'train_sampler': sampler.state_dict(), 'train_loader': loader_generator.get_state()},
+                        trainer_state={'history': history, 'samples_seen': samples_seen, 'running': running})
 
-    if resume_from is None and cfg.train.eval_at_start:
-        record_evaluation(
-            epoch=0,
-            running_train_ce=None,
-            running_aux_loss=None,
-            running_total_loss=None,
-        )
-        save_update_checkpoint_if_due(epoch=0)
+    def save_states(epoch: int, *, final: bool = False) -> None:
+        if out is None or not cfg.train.save_checkpoints:
+            return
+        dense = cfg.train.diagnostic_snapshot_every_updates
+        if dense is not None and (global_step % dense == 0 or final):
+            save_diagnostic_snapshot(out / 'diagnostic_snapshots' / f'step_{global_step:08d}.pt',
+                                     model=model, cfg=cfg, epoch=epoch, global_step=global_step,
+                                     grammar_path=out / 'rules.pt')
+        sparse = cfg.train.checkpoint_every_updates
+        if sparse is not None and global_step % sparse == 0:
+            save_full(out / 'checkpoints' / f'step_{global_step:08d}.pt', epoch)
+        if final:
+            save_full(out / 'last.pt', epoch)
 
-    update_based_evaluation = cfg.train.eval_every_updates is not None
-    stop_training = False
+    if checkpoint is None:
+        if cfg.train.eval_at_start:
+            record_evaluation(0)
+        save_states(0)
+    final_epoch = checkpoint['epoch'] if checkpoint is not None else 0
     for epoch in range(start_epoch, cfg.train.max_epochs + 1):
         if cfg.train.max_updates is not None and global_step >= cfg.train.max_updates:
             break
+        if cfg.data.resample_train_each_epoch and (epoch > 1 or resume_partial):
+            train_dataset = LeafSequenceDataset(sample_leaf_sequences(
+                cfg.data.train_size, rules, seed=_resampled_train_seed(cfg.rhm.train_seed, epoch)))
+        if not resume_partial:
+            running = dict(ntp=0.0, aux=0.0, total=0.0, seen=0)
+        loader = make_loader(train_dataset, batch_size=cfg.train.batch_size, shuffle=False,
+                             num_workers=0, seed=0, device=device, generator=loader_generator, sampler=sampler)
+        loader_state = loader_generator.get_state()
+        iterator = iter(loader)
+        if resume_partial:
+            # Recreating an interrupted iterator must not consume an extra loader seed.
+            loader_generator.set_state(loader_state)
+        resume_partial = False
         model.train()
         if predictor is not None:
             predictor.train()
-        running_ntp = 0.0
-        running_aux = 0.0
-        running_total = 0.0
-        seen = 0
-        for tokens in train_loader:
-            tokens = tokens.to(device, non_blocking=True)
-            _set_warmup_lr(
-                optimizer,
-                base_lr=cfg.optim.learning_rate,
-                update_index=global_step,
-                warmup_updates=warmup_updates,
-            )
+        for tokens in iterator:
+            _set_warmup_lr(optimizer, base_lr=cfg.optim.learning_rate,
+                           update_index=global_step, warmup_updates=warmup_updates)
             optimizer.zero_grad(set_to_none=True)
-            ntp_loss, aux_loss, total_loss = training_losses(model, predictor, tokens, cfg)
-            total_loss.backward()
-            if cfg.train.grad_clip > 0:
-                torch.nn.utils.clip_grad_norm_(
-                    _clip_parameters(model, predictor),
-                    cfg.train.grad_clip,
-                )
+            ntp, aux, total = training_losses(model, predictor, tokens.to(device), cfg)
+            if not torch.isfinite(total):
+                raise RuntimeError(f"non-finite training loss at update {global_step + 1}")
+            total.backward()
+            if cfg.train.grad_clip:
+                torch.nn.utils.clip_grad_norm_(_clip_parameters(model, predictor), cfg.train.grad_clip)
             optimizer.step()
-
-            batch_n = tokens.size(0)
-            running_ntp += float(ntp_loss.item()) * batch_n
-            if aux_loss is not None:
-                running_aux += float(aux_loss.item()) * batch_n
-            running_total += float(total_loss.item()) * batch_n
-            seen += batch_n
-            samples_seen += batch_n
+            n = tokens.size(0)
+            running['ntp'] += float(ntp.item()) * n
+            running['aux'] += float(aux.item()) * n if aux is not None else 0
+            running['total'] += float(total.item()) * n
+            running['seen'] += n
+            samples_seen += n
             global_step += 1
-
-            reached_update_budget = (
-                cfg.train.max_updates is not None
-                and global_step >= cfg.train.max_updates
-            )
-
-            if update_based_evaluation:
-                update_interval = cfg.train.eval_every_updates
-                if global_step % update_interval == 0 or reached_update_budget:
-                    record_evaluation(
-                        epoch=epoch,
-                        running_train_ce=running_ntp / max(seen, 1),
-                        running_aux_loss=(
-                            running_aux / max(seen, 1) if predictor is not None else None
-                        ),
-                        running_total_loss=running_total / max(seen, 1),
-                    )
-
-            save_update_checkpoint_if_due(epoch=epoch)
-
-            # Stop before DataLoader requests another batch, so sampler state
-            # in a mid-epoch checkpoint is exactly reproducible.
-            if reached_update_budget:
-                stop_training = True
+            final_epoch = epoch
+            budget_done = cfg.train.max_updates is not None and global_step >= cfg.train.max_updates
+            epoch_done = sampler.position >= len(train_dataset)
+            final = budget_done or (epoch_done and epoch == cfg.train.max_epochs)
+            interval = cfg.train.eval_every_updates
+            evaluate_due = global_step % interval == 0 if interval is not None else (epoch_done and epoch % cfg.train.eval_every_epochs == 0)
+            if evaluate_due or final:
+                record_evaluation(epoch)
+            save_states(epoch, final=final)
+            if budget_done:
                 break
-
-        if update_based_evaluation:
-            if epoch == cfg.train.max_epochs and global_step != last_evaluated_step:
-                record_evaluation(
-                    epoch=epoch,
-                    running_train_ce=running_ntp / max(seen, 1),
-                    running_aux_loss=(
-                        running_aux / max(seen, 1) if predictor is not None else None
-                    ),
-                    running_total_loss=running_total / max(seen, 1),
-                )
-            if stop_training:
-                break
-            refresh_train_pool(epoch + 1)
-            continue
-
-        running_train_ce = running_ntp / max(seen, 1)
-        should_eval = (
-            epoch % cfg.train.eval_every_epochs == 0
-            or epoch == cfg.train.max_epochs
-            or stop_training
-        )
-        if should_eval:
-            record_evaluation(
-                epoch=epoch,
-                running_train_ce=running_train_ce,
-                running_aux_loss=(running_aux / max(seen, 1) if predictor is not None else None),
-                running_total_loss=running_total / max(seen, 1),
-            )
-
-        if stop_training:
-            break
-        refresh_train_pool(epoch + 1)
-
-    if best_state is None:
-        raise RuntimeError("no validation evaluation was performed")
-
-    final_epoch = int(history[-1]["epoch"])
-    if out is not None and cfg.train.save_checkpoints:
-        # Save the true final training state before loading best-validation
-        # backbone weights for the one-time test evaluation.
-        save_checkpoint(
-            out / "last.pt",
-            model=model,
-            predictor=predictor,
-            optimizer=optimizer,
-            cfg=cfg,
-            epoch=final_epoch,
-            global_step=global_step,
-            metrics=history[-1],
-            loader_states=loader_states(),
-            trainer_state=trainer_state(),
-            best_state=best_state,
-            rules=rules,
-        )
-
-    # Test is touched only after NTP validation-based selection is complete.
-    model.load_state_dict(best_state, strict=True)
-    model.to(device)
-    selected_val_ce, selected_val_nll_by_position = evaluate_with_positions(
-        model, val_loader, cfg, device
-    )
-    test_ce, test_nll_by_position = evaluate_with_positions(model, test_loader, cfg, device)
-
-    theory_bounds = None
-    if cfg.rhm.m < cfg.rhm.v ** (cfg.rhm.s - 1):
-        theory_bounds = loss_upper_bounds(
-            cfg.rhm.L, v=cfg.rhm.v, m=cfg.rhm.m, s=cfg.rhm.s
-        )
-
-    backbone_params = model.num_parameters()
+    if not history:
+        raise RuntimeError('no validation evaluation was performed')
+    # A resume request at an already reached budget still produces a final artifact.
+    if checkpoint is not None and global_step == checkpoint['global_step']:
+        save_states(final_epoch, final=True)
+    best = min(history, key=lambda row: row['val_ce'])
+    last = history[-1]
+    backbone_params = sum(p.numel() for p in model.parameters())
     aux_params = sum(p.numel() for p in predictor.parameters()) if predictor is not None else 0
-    metrics: dict[str, Any] = {
-        "train_size": len(train_dataset),
-        "val_size": len(val_dataset),
-        "test_size": len(test_dataset),
-        "model_seed": cfg.model_seed,
-        "rule_seed": cfg.rhm.rule_seed,
-        "best_epoch": best_epoch,
-        "best_step": best_step,
-        "best_val_ce": best_val,
-        "selected_val_ce": selected_val_ce,
-        "val_ce": selected_val_ce,
-        "test_ce": test_ce,
-        "val_last_position_nll": selected_val_nll_by_position[-1],
-        "test_last_position_nll": test_nll_by_position[-1],
-        "uniform_baseline_nll": math.log(cfg.rhm.v),
-        "theory_last_token_nll_bounds": theory_bounds,
-        "last_train_ce": last_train_ce,
-        "last_val_ce": last_val_ce,
-        "last_val_last_position_nll": last_val_nll_by_position[-1],
-        "global_step": global_step,
-        "per_epoch_train_pool": cfg.data.train_size,
-        "total_optimizer_updates": global_step,
-        "total_sequence_draws": samples_seen,
-        "total_predicted_tokens": samples_seen * (input_block_size(cfg) - 1),
-        "resample_train_each_epoch": cfg.data.resample_train_each_epoch,
-        "max_updates": cfg.train.max_updates,
-        "val_nll_by_position": selected_val_nll_by_position,
-        "last_val_nll_by_position": last_val_nll_by_position,
-        "test_nll_by_position": test_nll_by_position,
-        "num_parameters": backbone_params,
-        "backbone_num_parameters": backbone_params,
-        "auxiliary_num_parameters": aux_params,
-        "total_num_parameters": backbone_params + aux_params,
-        "device": str(device),
-        "objective": cfg.objective.mode,
-        "auxiliary_mode": cfg.auxiliary.mode,
-        "auxiliary_target_layer": cfg.auxiliary.target_layer,
-        "auxiliary_weight": (
-            float(cfg.auxiliary.weight) if cfg.auxiliary.mode != "none" else None
-        ),
-        "history": history,
+    metrics = {
+        'train_size': cfg.data.train_size, 'val_size': cfg.data.val_size,
+        'model_seed': cfg.model_seed, 'rule_seed': cfg.rhm.rule_seed,
+        'best_epoch': best['epoch'], 'best_step': best['global_step'], 'best_val_ce': best['val_ce'],
+        'val_ce': last['val_ce'], 'last_val_ce': last['val_ce'],
+        'val_nll_by_position': last['val_nll_by_position'],
+        'val_last_position_nll': last['val_last_position_nll'],
+        'last_val_nll_by_position': last['val_nll_by_position'],
+        'last_val_last_position_nll': last['val_last_position_nll'],
+        'uniform_baseline_nll': math.log(cfg.rhm.v),
+        'theory_last_token_nll_bounds': loss_upper_bounds(cfg.rhm.L, v=cfg.rhm.v, m=cfg.rhm.m, s=cfg.rhm.s) if cfg.rhm.m < cfg.rhm.v ** (cfg.rhm.s-1) else None,
+        'global_step': global_step, 'total_optimizer_updates': global_step,
+        'per_epoch_train_pool': cfg.data.train_size, 'total_sequence_draws': samples_seen,
+        'total_predicted_tokens': samples_seen * (input_block_size(cfg)-1),
+        'resample_train_each_epoch': cfg.data.resample_train_each_epoch, 'max_updates': cfg.train.max_updates,
+        'backbone_num_parameters': backbone_params, 'auxiliary_num_parameters': aux_params,
+        'total_num_parameters': backbone_params + aux_params, 'device': str(device),
+        'auxiliary_mode': cfg.auxiliary.mode, 'auxiliary_target_layer': cfg.auxiliary.target_layer,
+        'auxiliary_weight': cfg.auxiliary.weight if predictor is not None else None,
+        'history': history,
     }
-
     if out is not None:
-        import json
-
-        with open(out / "metrics.json", "w", encoding="utf-8") as f:
-            json.dump(metrics, f, indent=2)
-
+        (out / 'metrics.json').write_text(json.dumps(metrics, indent=2) + '\n')
+        (out / 'history.json').unlink(missing_ok=True)
     return metrics

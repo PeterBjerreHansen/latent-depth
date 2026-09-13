@@ -1,0 +1,1312 @@
+{
+  "status": "retired after probe calibration",
+  "reason": "insufficient target separation for subsequent experiments; probe budget also materially affected measured onsets",
+  "training_config": {
+    "rhm": {
+      "v": 16,
+      "n": 16,
+      "m": 4,
+      "s": 2,
+      "L": 5,
+      "rule_seed": 0,
+      "train_seed": 1000,
+      "val_seed": 2000,
+      "test_seed": 3000
+    },
+    "data": {
+      "train_size": 65536,
+      "val_size": 16384,
+      "test_size": 16384,
+      "resample_train_each_epoch": true
+    },
+    "model": {
+      "n_layer": 8,
+      "n_head": 8,
+      "n_embd": 256,
+      "dropout": 0.0,
+      "bias": true
+    },
+    "objective": {
+      "mode": "next_token"
+    },
+    "auxiliary": {
+      "mode": "none",
+      "target_layer": null,
+      "weight": 0.3,
+      "predictor_hidden_mult": 2,
+      "seed": 54321
+    },
+    "optim": {
+      "name": "adamw",
+      "learning_rate": 0.0003,
+      "betas": [
+        0.9,
+        0.95
+      ],
+      "weight_decay": 0.0,
+      "warmup_epochs": 0.0
+    },
+    "diagnostics": {
+      "enabled": false,
+      "linear_probe": true,
+      "synonym_clustering": true,
+      "every_evals": 1,
+      "num_sequences": 1024,
+      "probe_steps": 300,
+      "probe_lr": 0.001,
+      "seed": 12345,
+      "eps": 1e-08
+    },
+    "train": {
+      "batch_size": 256,
+      "max_epochs": 1000,
+      "max_updates": 10000,
+      "grad_clip": 1.0,
+      "eval_every_epochs": 100,
+      "eval_every_updates": 250,
+      "eval_at_start": true,
+      "num_workers": 0,
+      "device": "mps",
+      "deterministic": true,
+      "deterministic_strict": false,
+      "save_checkpoints": true,
+      "checkpoint_every_evals": null,
+      "checkpoint_every_updates": 250
+    },
+    "model_seed": 0
+  },
+  "primary_results": [
+    {
+      "target": "ntp",
+      "target_layer": null,
+      "best_val_ce": 1.4000511504409294,
+      "best_val_ce_delta_vs_ntp": 0.0,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6125274995011427,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.0
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 3250,
+            "arm_val_ce": 1.4752297337925542,
+            "ntp_val_ce": 1.4752297337925542,
+            "delta_vs_ntp": 0.0
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 3250,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": 0,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        }
+      }
+    },
+    {
+      "target": "target_0",
+      "target_layer": 0,
+      "best_val_ce": 1.3989659338089218,
+      "best_val_ce_delta_vs_ntp": -0.0010852166320076684,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1000,
+            "confirmed_step": 1250,
+            "observer_layer": 5
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -250
+          },
+          "matched_validation_ce": {
+            "step": 1000,
+            "arm_val_ce": 1.6503470573093622,
+            "ntp_val_ce": 1.6689523377515856,
+            "delta_vs_ntp": -0.018605280442223426
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 2500,
+            "confirmed_step": 2750,
+            "observer_layer": 7
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -750
+          },
+          "matched_validation_ce": {
+            "step": 2500,
+            "arm_val_ce": 1.485199205626193,
+            "ntp_val_ce": 1.5157477600282179,
+            "delta_vs_ntp": -0.030548554402024974
+          }
+        }
+      },
+      "tau_2": 1000,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": -250,
+      "delta_tau_2_status": "observed",
+      "tau_3": 2500,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -750,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1000
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1500
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -500
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        }
+      }
+    },
+    {
+      "target": "target_1",
+      "target_layer": 1,
+      "best_val_ce": 1.3990971719463086,
+      "best_val_ce_delta_vs_ntp": -0.0009539784946208663,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6168752960680473,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.004347796566904538
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 2750,
+            "confirmed_step": 3000,
+            "observer_layer": 5
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -500
+          },
+          "matched_validation_ce": {
+            "step": 2750,
+            "arm_val_ce": 1.4815408250301956,
+            "ntp_val_ce": 1.5039698882328887,
+            "delta_vs_ntp": -0.02242906320269311
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 2750,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -500,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1500
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -500
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        }
+      }
+    },
+    {
+      "target": "target_2",
+      "target_layer": 2,
+      "best_val_ce": 1.399560298995986,
+      "best_val_ce_delta_vs_ntp": -0.0004908514449433188,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6053952915789258,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": -0.0071322079222169155
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 3000,
+            "confirmed_step": 3250,
+            "observer_layer": 6
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -250
+          },
+          "matched_validation_ce": {
+            "step": 3000,
+            "arm_val_ce": 1.481642613217475,
+            "ntp_val_ce": 1.4897217922768886,
+            "delta_vs_ntp": -0.008079179059413688
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 3000,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -250,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        }
+      }
+    },
+    {
+      "target": "target_3",
+      "target_layer": 3,
+      "best_val_ce": 1.3993244207663191,
+      "best_val_ce_delta_vs_ntp": -0.0007267296746102936,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.615344864962202,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.0028173654610592624
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 3000,
+            "confirmed_step": 3250,
+            "observer_layer": 4
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -250
+          },
+          "matched_validation_ce": {
+            "step": 3000,
+            "arm_val_ce": 1.4778285544823795,
+            "ntp_val_ce": 1.4897217922768886,
+            "delta_vs_ntp": -0.011893237794509126
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 3000,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -250,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        }
+      }
+    },
+    {
+      "target": "target_4",
+      "target_layer": 4,
+      "best_val_ce": 1.3994992533773785,
+      "best_val_ce_delta_vs_ntp": -0.0005518970635509657,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6232040173283988,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.010676517827256093
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 3000,
+            "confirmed_step": 3250,
+            "observer_layer": 4
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -250
+          },
+          "matched_validation_ce": {
+            "step": 3000,
+            "arm_val_ce": 1.4743514125190316,
+            "ntp_val_ce": 1.4897217922768886,
+            "delta_vs_ntp": -0.015370379757857044
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 3000,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -250,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        }
+      }
+    },
+    {
+      "target": "target_5",
+      "target_layer": 5,
+      "best_val_ce": 1.3991428425332773,
+      "best_val_ce_delta_vs_ntp": -0.0009083079076521727,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6189021186888097,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.006374619187667019
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 3000,
+            "confirmed_step": 3250,
+            "observer_layer": 3
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -250
+          },
+          "matched_validation_ce": {
+            "step": 3000,
+            "arm_val_ce": 1.478524444290557,
+            "ntp_val_ce": 1.4897217922768886,
+            "delta_vs_ntp": -0.011197347986331652
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 3000,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -250,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        }
+      }
+    },
+    {
+      "target": "target_6",
+      "target_layer": 6,
+      "best_val_ce": 1.399275330240808,
+      "best_val_ce_delta_vs_ntp": -0.0007758202001213466,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6253462168237856,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.012818717322642836
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 2750,
+            "confirmed_step": 3000,
+            "observer_layer": 6
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -500
+          },
+          "matched_validation_ce": {
+            "step": 2750,
+            "arm_val_ce": 1.4865284315235312,
+            "ntp_val_ce": 1.5039698882328887,
+            "delta_vs_ntp": -0.017441456709357483
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 2750,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -500,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1500
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -500
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        }
+      }
+    },
+    {
+      "target": "target_7",
+      "target_layer": 7,
+      "best_val_ce": 1.399006232014677,
+      "best_val_ce_delta_vs_ntp": -0.001044918426252428,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6178788085122622,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.005351309011119465
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 3000,
+            "confirmed_step": 3250,
+            "observer_layer": 4
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -250
+          },
+          "matched_validation_ce": {
+            "step": 3000,
+            "arm_val_ce": 1.4803213175243488,
+            "ntp_val_ce": 1.4897217922768886,
+            "delta_vs_ntp": -0.0094004747525398
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 3000,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -250,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        }
+      }
+    },
+    {
+      "target": "target_8",
+      "target_layer": 8,
+      "best_val_ce": 1.3990013189144404,
+      "best_val_ce_delta_vs_ntp": -0.0010498315264890756,
+      "levels": {
+        "2": {
+          "event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 4
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 1250,
+            "confirmed_step": 1500,
+            "observer_layer": 2
+          },
+          "ntp_tau": 1250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": 0
+          },
+          "matched_validation_ce": {
+            "step": 1250,
+            "arm_val_ce": 1.6231117335283347,
+            "ntp_val_ce": 1.6125274995011427,
+            "delta_vs_ntp": 0.010584234027191997
+          }
+        },
+        "3": {
+          "event": {
+            "status": "observed",
+            "onset_step": 3000,
+            "confirmed_step": 3250,
+            "observer_layer": 4
+          },
+          "ntp_event": {
+            "status": "observed",
+            "onset_step": 3250,
+            "confirmed_step": 3500,
+            "observer_layer": 4
+          },
+          "ntp_tau": 3250,
+          "ntp_tau_status": "observed",
+          "ntp_tau_through_step": null,
+          "delta_tau": {
+            "status": "observed",
+            "value": -250
+          },
+          "matched_validation_ce": {
+            "step": 3000,
+            "arm_val_ce": 1.478377795496565,
+            "ntp_val_ce": 1.4897217922768886,
+            "delta_vs_ntp": -0.011343996780323717
+          }
+        }
+      },
+      "tau_2": 1250,
+      "tau_2_status": "observed",
+      "tau_2_through_step": null,
+      "delta_tau_2": 0,
+      "delta_tau_2_status": "observed",
+      "tau_3": 3000,
+      "tau_3_status": "observed",
+      "tau_3_through_step": null,
+      "delta_tau_3": -250,
+      "delta_tau_3_status": "observed",
+      "transitions": {
+        "1->2": {
+          "from_level": 1,
+          "to_level": 2,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 1250
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": 0
+          }
+        },
+        "2->3": {
+          "from_level": 2,
+          "to_level": 3,
+          "tau_interval": {
+            "status": "observed",
+            "value": 1750
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 2000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -250
+          }
+        },
+        "3->4": {
+          "from_level": 3,
+          "to_level": 4,
+          "tau_interval": {
+            "status": "observed",
+            "value": 2500
+          },
+          "ntp_tau_interval": {
+            "status": "observed",
+            "value": 3000
+          },
+          "delta_tau_interval_vs_ntp": {
+            "status": "observed",
+            "value": -500
+          }
+        }
+      }
+    }
+  ],
+  "validation_ce_at_5000": {
+    "target_5": 1.439985453175576,
+    "target_2": 1.4419613736794301,
+    "target_3": 1.4395197422934636,
+    "target_4": 1.4386381474060697,
+    "ntp": 1.4439405344986176,
+    "target_8": 1.4403783821448264,
+    "target_1": 1.4363368857753342,
+    "target_6": 1.4373223431720097,
+    "target_7": 1.4404438807170898,
+    "target_0": 1.435372280067719
+  }
+}

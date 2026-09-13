@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from config import ExperimentConfig
+from config import ExperimentConfig, DiagnosticsConfig
 from diagnostics import clustering_score_from_features, run_latent_diagnostics, run_probe_control
 from diagnostics.latent import _fit_linear_probes
 from rhm.dataset import build_rhm_bundle, slice_rhm_split
@@ -27,11 +27,6 @@ def _cfg() -> ExperimentConfig:
             },
             "data": {"train_size": 32, "val_size": 32, "test_size": 32},
             "model": {"n_layer": 2, "n_head": 2, "n_embd": 16, "dropout": 0.0},
-            "diagnostics": {
-                "enabled": True, "linear_probe": True, "synonym_clustering": True,
-                "every_evals": 1, "num_sequences": 16, "probe_steps": 8,
-                "probe_lr": 0.01, "seed": 123,
-            },
             "train": {"batch_size": 8, "max_epochs": 2, "max_updates": 2,
                       "device": "cpu", "deterministic": True},
             "model_seed": 5,
@@ -198,7 +193,7 @@ def test_full_diagnostics_preserve_backbone_rng_and_mode():
     np.random.seed(222)
     torch.manual_seed(333)
     py_state, np_state, torch_state = random.getstate(), np.random.get_state(), torch.get_rng_state().clone()
-    result = run_latent_diagnostics(model, bundle.val, bundle.rules, cfg, torch.device("cpu"))
+    result = run_latent_diagnostics(model, bundle.val, bundle.rules, cfg, torch.device("cpu"), settings=DiagnosticsConfig(num_sequences=16, probe_steps=8))
     assert model.training
     for name, value in model.state_dict().items():
         torch.testing.assert_close(value, before[name], atol=0.0, rtol=0.0)
@@ -226,7 +221,7 @@ def test_probe_controls_preserve_rng_and_report_uniform_reference():
     torch.manual_seed(cfg.model_seed)
     model = build_model(cfg).eval()
     before = torch.get_rng_state().clone()
-    result = run_probe_control(model, bundle.val, cfg, torch.device("cpu"), shuffle_labels=True)
+    result = run_probe_control(model, bundle.val, cfg, torch.device("cpu"), shuffle_labels=True, settings=DiagnosticsConfig(num_sequences=16, probe_steps=8))
     torch.testing.assert_close(torch.get_rng_state(), before, atol=0.0, rtol=0.0)
     assert result["shuffle_labels"] is True
     assert result["uniform_random_accuracy"] == 1.0 / cfg.rhm.v

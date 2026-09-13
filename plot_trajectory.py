@@ -376,10 +376,7 @@ def _plot_level_curves(
         )
     ]
     if not layers:
-        figure, axis = plt.subplots(figsize=(11.0, 5.0))
-        axis.text(0.5, 0.5, f"No H{level} observer-layer curves", ha="center", va="center")
-        axis.set_axis_off()
-        _save_figure(figure, output_dir / f"h{level}_{file_metric}.png")
+        (output_dir / f"h{level}_{file_metric}.png").unlink(missing_ok=True)
         return
 
     steps = np.asarray(group["checkpoint_steps"], dtype=int)

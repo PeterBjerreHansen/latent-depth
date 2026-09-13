@@ -111,6 +111,7 @@ def _trajectory_signature(arm: Mapping[str, Any]) -> dict[str, Any]:
         "split": summary.get("split"),
         "num_sequences": summary.get("num_sequences"),
         "probe_steps": summary.get("probe_steps"),
+        "diagnostic_config": summary.get("diagnostic_config"),
         "checkpoint_steps": summary.get("checkpoint_steps"),
         "levels": sorted(str(level) for level in levels),
         "layer_shapes": layer_shapes,

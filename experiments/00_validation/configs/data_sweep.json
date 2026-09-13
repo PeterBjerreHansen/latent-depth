@@ -23,13 +23,13 @@
       "dropout": 0.0,
       "bias": true
     },
-    "objective": {
-      "mode": "next_token"
-    },
     "optim": {
       "name": "adamw",
       "learning_rate": 0.0003,
-      "betas": [0.9, 0.95],
+      "betas": [
+        0.9,
+        0.95
+      ],
       "weight_decay": 0.0,
       "warmup_epochs": 0.0
     },
@@ -48,7 +48,26 @@
     },
     "model_seed": 0
   },
-  "train_sizes": [128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536, 131072, 262144],
-  "grammar_seeds": [0],
-  "model_seeds": [0, 1, 2]
+  "train_sizes": [
+    128,
+    256,
+    512,
+    1024,
+    2048,
+    4096,
+    8192,
+    16384,
+    32768,
+    65536,
+    131072,
+    262144
+  ],
+  "grammar_seeds": [
+    0
+  ],
+  "model_seeds": [
+    0,
+    1,
+    2
+  ]
 }

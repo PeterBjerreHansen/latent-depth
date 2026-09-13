@@ -29,7 +29,7 @@ def _cfg() -> ExperimentConfig:
             },
             "data": {"train_size": 32, "val_size": 32, "test_size": 32},
             "model": {"n_layer": 1, "n_head": 2, "n_embd": 32, "dropout": 0.0},
-            "objective": {"mode": "next_token"},
+
             "optim": {
                 "name": "adamw",
                 "learning_rate": 0.001,
@@ -78,7 +78,6 @@ def _datasets(bundle):
     return (
         LeafSequenceDataset(bundle.train.leaves),
         LeafSequenceDataset(bundle.val.leaves),
-        LeafSequenceDataset(bundle.test.leaves),
     )
 
 
@@ -99,31 +98,6 @@ def test_update_based_evaluation_records_step_zero_fixed_steps_and_positions(tmp
     assert all(len(row["val_nll_by_position"]) == width for row in metrics["history"])
 
 
-def test_selected_validation_metrics_are_recomputed_from_best_checkpoint(tmp_path: Path):
-    cfg = _cfg()
-    cfg.train.max_updates = 4
-    bundle = _bundle(cfg)
-    val_ds = LeafSequenceDataset(bundle.val.leaves)
-    metrics = train_model(
-        cfg,
-        *_datasets(bundle),
-        output_dir=tmp_path,
-        rules=bundle.rules,
-        verbose=False,
-    )
-    best_model, _, _ = load_model_from_checkpoint(tmp_path / "best.pt")
-    loader = make_loader(
-        val_ds,
-        batch_size=cfg.train.batch_size,
-        shuffle=False,
-        num_workers=0,
-        seed=0,
-        device=torch.device("cpu"),
-    )
-    val_ce, positions = evaluate_with_positions(best_model, loader, cfg, torch.device("cpu"))
-    assert metrics["val_ce"] == pytest.approx(val_ce)
-    assert metrics["selected_val_ce"] == pytest.approx(val_ce)
-    assert metrics["val_nll_by_position"] == pytest.approx(positions)
 
 
 def test_exact_update_checkpoint_written_even_between_evaluations(tmp_path: Path):

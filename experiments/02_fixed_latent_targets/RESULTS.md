@@ -1,60 +1,38 @@
-# Stage 02 fixed auxiliary target-depth results
+# Stage 02 results
 
-**Status:** complete for the active `lambda=0.3` screen
-**Decision:** proceed to seed replication before making a depth-specific claim
+## Current status
 
-The Stage-02 result uses the fresh-training-pool L5 screen and the fixed
-balanced-accessibility threshold in [`acquisition_rule.json`](acquisition_rule.json).
-The comparison must be made at matched optimizer updates and must retain the
-targets actually present in each paired group.
+The lambda=1.0 six-arm L5 screen is running, beginning with NTP, following
+probe calibration and the snapshot refactor. Live run output belongs in
+`runs/target_depth_l5_lambda_1_0_sparse_5000_updates/`.
+No lambda=1.0 scientific result is claimed until training and diagnostics finish.
 
-## L5 target-depth screen
+## Probe calibration
 
-| lambda | output |
-|---:|---|
-| 0.3 | `runs/target_depth_l5_lambda_0_3_10000_updates/` |
+The original 1,024-sequence / 300-step budget materially underestimated held-out
+accessibility relative to larger samples and better fitted probes. Across the
+six original H2/H3 transition checkpoints, the stronger 4,096/1,000 setting
+raised maximum balanced accuracy by approximately 0.06–0.20.
 
-Summary:
+Further checks used earlier H2/H3 checkpoints, up to the full 16,384-example
+validation split. The chosen probe has 8,192 fitting and 8,192 evaluation
+examples, 3,000 Adam steps at learning rate 0.01, and seed 12345. On the three
+H3 convergence checks, maximum balanced accuracy differed by less than 0.005
+from 12,000 steps at learning rate 0.001. A second split seed changed that
+maximum by up to approximately 0.025. These are calibration checks, not error
+bars for the upcoming trajectory. Borderline conclusions need sensitivity checks.
 
-| target | H2 `tau` / `Delta tau` | H3 `tau` / `Delta tau` | H4 `tau` / `Delta tau` | H1→H2 `Delta tau` / `Delta interval` | H2→H3 `Delta tau` / `Delta interval` | H3→H4 `Delta tau` / `Delta interval` | best validation CE / `Delta` |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| NTP | 1,250 / 0 | 3,250 / 0 | 6,250 / 0 | 1,250 / 0 | 2,000 / 0 | 3,000 / 0 | 1.400051 / 0 |
-| `j=0` | 1,000 / -250 | 2,500 / -750 | 5,250 / -1,000 | 1,000 / -250 | 1,500 / -500 | 2,750 / -250 | 1.398966 / -0.001085 |
-| `j=1` | 1,250 / 0 | 2,750 / -500 | 5,750 / -500 | 1,250 / 0 | 1,500 / -500 | 3,000 / 0 | 1.399097 / -0.000954 |
-| `j=2` | 1,250 / 0 | 3,000 / -250 | 6,000 / -250 | 1,250 / 0 | 1,750 / -250 | 3,000 / 0 | 1.399560 / -0.000491 |
-| `j=3` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399324 / -0.000727 |
-| `j=4` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399499 / -0.000552 |
-| `j=5` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399143 / -0.000908 |
-| `j=6` | 1,250 / 0 | 2,750 / -500 | 5,500 / -750 | 1,250 / 0 | 1,500 / -500 | 2,750 / -250 | 1.399275 / -0.000776 |
-| `j=7` | 1,250 / 0 | 3,000 / -250 | 5,750 / -500 | 1,250 / 0 | 1,750 / -250 | 2,750 / -250 | 1.399006 / -0.001045 |
-| `j=8` | 1,250 / 0 | 3,000 / -250 | 5,500 / -750 | 1,250 / 0 | 1,750 / -250 | 2,500 / -500 | 1.399001 / -0.001050 |
+Full measurement records and the frozen settings are in
+[probe_calibration.json](probe_calibration.json) and
+[probe_settings.json](probe_settings.json).
 
-In the level columns, `Delta tau` is the arm onset minus the NTP onset for
-that level. In the transition columns, the first value is the arm interval
-`tau_l - tau_l-1`; `Delta interval` is that interval minus the corresponding
-NTP interval. The machine-readable transition rows are in
-[`transition_intervals.csv`](runs/target_depth_l5_lambda_0_3_10000_updates/analysis/transition_intervals.csv),
-and the corresponding figure is
-[`transition_intervals.png`](runs/target_depth_l5_lambda_0_3_10000_updates/analysis/plots/transition_intervals.png).
+## Retired lambda=0.3 screen
 
-The primary H2/H3 timing result shows the largest acceleration for `j=0`:
-250 updates earlier for H2 and 750 updates earlier for H3. Its H2→H3 interval
-is also 500 updates shorter than NTP, so the H3 result is not explained only by
-an earlier H2 onset. Targets `j=1` and `j=6` also shorten H2→H3 by 500 updates;
-the other auxiliary targets shorten it by 250 updates in this seed. The
-H3→H4 interval is shortened most by `j=8` (500 updates), while `j=1` and
-`j=2` leave that interval unchanged. Later targets advance H3 and H4 in this
-seed, but there is no monotone target-depth pattern. All H4 events are observed
-within the extended 10,000-update budget. The best-validation CE values are
-within 0.0011 of the paired NTP value; the full matched-update CE curves and
-transition rows are in the archived analysis outputs.
+The preliminary single-pair screen showed auxiliary acceleration but insufficient
+target separation for the intended next experiments. The old fitting budget also
+materially affected accessibility measurements. This motivates stronger lambda
+and improved probes rather than interpreting the preliminary ranking as final.
 
-The final report includes the 50/75/90% probe milestones, layerwise
-accessibility curves, optional shuffled-label controls, clustering and `Q` as
-supporting diagnostics, and matched validation cross-entropy. If an event is
-not observed by the final checkpoint, it will be reported as “not confirmed by
-step T”; paired time differences involving an unconfirmed event will be
-explicitly unavailable rather than converted into a numeric bound.
-
-`lambda=1.0` and an extended hierarchy are conditional follow-ups. They are
-not part of the current result.
+The compact original training config, timing table, and matched-update CE values
+are preserved in [retired_lambda_0_3.json](retired_lambda_0_3.json). The old run,
+its active config, and redundant outputs were removed after calibration.
