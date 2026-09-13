@@ -1,0 +1,20 @@
+[
+  {
+    "level": 2,
+    "input": "true_child_latents",
+    "num_examples": 16384,
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "represented_classes": 16,
+    "balanced_majority_accuracy": 0.0625
+  },
+  {
+    "level": 3,
+    "input": "true_child_latents",
+    "num_examples": 16384,
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "represented_classes": 16,
+    "balanced_majority_accuracy": 0.0625
+  }
+]

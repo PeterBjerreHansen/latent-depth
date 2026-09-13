@@ -1,0 +1,34 @@
+{
+  "experiment_config": "../configs/target_depth_screen_lambda_1_0.json",
+  "rules_path": "../results/lambda_1_0/rules.pt",
+  "reference_step_zero_checkpoint": "../runs/target_depth_l5_lambda_1_0_sparse_5000_updates/grammar_0/model_0/ntp/diagnostic_snapshots/step_00000000.pt",
+  "levels": [2, 3],
+  "num_sequences": 16384,
+  "eval_examples": 8192,
+  "partition_seed": 271828,
+  "fit_sizes": [64, 128, 256, 512, 1024, 2048, 4096, 8192],
+  "model_seeds": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  "sample_curve_model_seeds": [0],
+  "replicate_fit_sizes": [1024, 8192],
+  "probe_seeds": [12345, 12346, 12347],
+  "replicate_probe_seeds": [12345, 12346],
+  "probe_steps": 3000,
+  "probe_lr": 0.01,
+  "surface_mlp_hidden": 128,
+  "surface_mlp_steps": 1000,
+  "surface_mlp_lr": 0.01,
+  "surface_mlp_seed": 12345,
+  "reference_runs": {
+    "ntp": "../runs/target_depth_l5_lambda_1_0_sparse_5000_updates/grammar_0/model_0/ntp",
+    "target_0": "../runs/target_depth_l5_lambda_1_0_sparse_5000_updates/grammar_0/model_0/target_0",
+    "target_6": "../runs/target_depth_l5_lambda_1_0_sparse_5000_updates/grammar_0/model_0/target_6"
+  },
+  "invariance": {
+    "levels": [2, 3, 4],
+    "arms": ["ntp", "target_0", "target_6"],
+    "steps": [0, 5000],
+    "num_sequences": 1024,
+    "replicates": 8,
+    "seed": 12345
+  }
+}

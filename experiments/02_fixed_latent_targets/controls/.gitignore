@@ -1,0 +1,7 @@
+# Control runs are diagnostic-only; model state and feature captures stay local.
+*.pt
+*.pth
+*.ckpt
+*.npy
+*.npz
+__pycache__/

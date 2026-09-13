@@ -81,7 +81,26 @@ def _features_at_positions(
     return torch.stack([torch.cat(parts, dim=1) for parts in by_position], dim=0)
 
 
-def _fit_linear_probes(
+def extract_features_at_positions(
+    model: GPT,
+    leaves: torch.Tensor,
+    positions: list[int],
+    *,
+    batch_size: int,
+    device: torch.device,
+) -> torch.Tensor:
+    """Return frozen residual-stream features at selected causal positions.
+
+    The returned tensor has shape ``[positions, layers, examples, channels]``
+    and is kept on CPU.  This is the public seam used by offline controls that
+    need to fit more than one probe split on the same frozen representation.
+    """
+    return _features_at_positions(
+        model, leaves, positions, batch_size=batch_size, device=device
+    )
+
+
+def fit_linear_probes(
     features: torch.Tensor,
     labels: torch.Tensor,
     *,
@@ -91,6 +110,8 @@ def _fit_linear_probes(
     seed: int,
     device: torch.device,
     eps: float = 1e-8,
+    fit_indices: torch.Tensor | Sequence[int] | None = None,
+    eval_indices: torch.Tensor | Sequence[int] | None = None,
 ) -> tuple[
     torch.Tensor,
     torch.Tensor,
@@ -101,7 +122,12 @@ def _fit_linear_probes(
     int,
     int,
 ]:
-    """Fit independent probes and return accuracy-aware evaluation baselines."""
+    """Fit independent probes on a supplied or deterministic random split.
+
+    When ``fit_indices`` and ``eval_indices`` are supplied, they define the
+    complete split and are not resampled.  This lets controls vary probe
+    sample size while keeping one fixed held-out evaluation set.
+    """
     if features.ndim != 4 or labels.ndim != 2:
         raise ValueError("unexpected probe feature/label rank")
     R, J, N, C = features.shape
@@ -110,10 +136,29 @@ def _fit_linear_probes(
     if N < 4:
         raise ValueError("at least four examples are required for probe fitting")
 
-    generator = torch.Generator(device="cpu").manual_seed(int(seed))
-    permutation = torch.randperm(N, generator=generator)
-    fit_size = N // 2
-    fit_idx, eval_idx = permutation[:fit_size], permutation[fit_size:]
+    if (fit_indices is None) != (eval_indices is None):
+        raise ValueError("fit_indices and eval_indices must be supplied together")
+    if fit_indices is None:
+        generator = torch.Generator(device="cpu").manual_seed(int(seed))
+        permutation = torch.randperm(N, generator=generator)
+        fit_idx, eval_idx = permutation[: N // 2], permutation[N // 2 :]
+    else:
+        fit_idx = torch.as_tensor(fit_indices, dtype=torch.long).flatten().cpu()
+        eval_idx = torch.as_tensor(eval_indices, dtype=torch.long).flatten().cpu()
+        if fit_idx.numel() == 0 or eval_idx.numel() == 0:
+            raise ValueError("probe fit and evaluation splits must be nonempty")
+        if torch.any(fit_idx < 0) or torch.any(fit_idx >= N):
+            raise ValueError("probe fit indices lie outside the feature set")
+        if torch.any(eval_idx < 0) or torch.any(eval_idx >= N):
+            raise ValueError("probe evaluation indices lie outside the feature set")
+        if torch.unique(fit_idx).numel() != fit_idx.numel():
+            raise ValueError("probe fit indices must be unique")
+        if torch.unique(eval_idx).numel() != eval_idx.numel():
+            raise ValueError("probe evaluation indices must be unique")
+        if torch.isin(fit_idx, eval_idx).any():
+            raise ValueError("probe fit and evaluation indices must be disjoint")
+    fit_size = int(fit_idx.numel())
+    eval_size = int(eval_idx.numel())
     x_fit = features[:, :, fit_idx, :].to(device=device, dtype=torch.float32)
     x_eval = features[:, :, eval_idx, :].to(device=device, dtype=torch.float32)
     fit_mean = x_fit.mean(dim=2, keepdim=True)
@@ -138,7 +183,6 @@ def _fit_linear_probes(
         optimizer.step()
 
     with torch.no_grad():
-        eval_size = N - fit_size
         logits = torch.einsum("rjnc,rjvc->rjnv", x_eval, weight) + bias[:, :, None, :]
         y_eval = y_eval_base[:, None, :].expand(R, J, eval_size)
         predictions = logits.argmax(dim=-1)
@@ -175,6 +219,39 @@ def _fit_linear_probes(
         balanced_accuracy,
         fit_size,
         eval_size,
+    )
+
+
+def _fit_linear_probes(
+    features: torch.Tensor,
+    labels: torch.Tensor,
+    *,
+    vocab_size: int,
+    steps: int,
+    learning_rate: float,
+    seed: int,
+    device: torch.device,
+    eps: float = 1e-8,
+) -> tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    int,
+    int,
+]:
+    """Backward-compatible internal wrapper using the ordinary random split."""
+    return fit_linear_probes(
+        features,
+        labels,
+        vocab_size=vocab_size,
+        steps=steps,
+        learning_rate=learning_rate,
+        seed=seed,
+        device=device,
+        eps=eps,
     )
 
 

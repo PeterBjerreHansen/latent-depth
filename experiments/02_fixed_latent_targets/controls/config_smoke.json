@@ -1,0 +1,72 @@
+{
+  "experiment": {
+    "rhm": {
+      "v": 4,
+      "n": 4,
+      "m": 2,
+      "s": 2,
+      "L": 3,
+      "rule_seed": 7,
+      "train_seed": 10,
+      "val_seed": 20,
+      "test_seed": 30
+    },
+    "data": {
+      "train_size": 64,
+      "val_size": 64,
+      "test_size": 64,
+      "resample_train_each_epoch": true
+    },
+    "model": {
+      "n_layer": 2,
+      "n_head": 2,
+      "n_embd": 16,
+      "dropout": 0.0,
+      "bias": true
+    },
+    "auxiliary": {
+      "mode": "none",
+      "target_layer": null,
+      "weight": 1.0,
+      "predictor_hidden_mult": 2,
+      "seed": 54321
+    },
+    "optim": {
+      "name": "adamw",
+      "learning_rate": 0.0003,
+      "betas": [0.9, 0.95],
+      "weight_decay": 0.0,
+      "warmup_epochs": 0.0
+    },
+    "train": {
+      "batch_size": 16,
+      "max_epochs": 4,
+      "max_updates": 8,
+      "grad_clip": 1.0,
+      "eval_every_epochs": 1,
+      "eval_every_updates": 2,
+      "eval_at_start": true,
+      "num_workers": 0,
+      "device": "cpu",
+      "deterministic": true,
+      "deterministic_strict": true,
+      "save_checkpoints": false,
+      "diagnostic_snapshot_every_updates": null,
+      "checkpoint_every_updates": null
+    },
+    "model_seed": 0
+  },
+  "levels": [1, 2],
+  "num_sequences": 64,
+  "eval_examples": 32,
+  "partition_seed": 271828,
+  "fit_sizes": [8, 16, 32],
+  "model_seeds": [0, 1],
+  "probe_seeds": [12345],
+  "probe_steps": 30,
+  "probe_lr": 0.05,
+  "surface_mlp_hidden": 16,
+  "surface_mlp_steps": 20,
+  "surface_mlp_lr": 0.05,
+  "surface_mlp_seed": 12345
+}

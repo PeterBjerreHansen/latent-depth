@@ -46,6 +46,16 @@ at selected ages. Missing supporting diagnostics are not acquisition failures.
 Compare matched-update validation NLL curves; best validation CE is secondary.
 Test evaluation is explicit and should follow development/model selection.
 
+## Initialization controls
+
+The [controls workflow](controls/README.md) tests whether step-zero H2
+accessibility is surface recoverability from random features rather than a
+synonym-invariant abstraction. It compares fixed held-out probe sample-size
+curves for random backbones, visible-leaf baselines, a grammar child-pair
+oracle, and shuffled labels. It also provides optional repeated C/Q checks on
+saved snapshots. These controls do not change the primary H2/H3 endpoint and
+do not train additional Transformer models.
+
 ## Run one arm through the full workflow, then the rest
 
 From the repository root:

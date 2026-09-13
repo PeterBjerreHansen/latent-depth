@@ -1,0 +1,758 @@
+{
+  "schema_version": 1,
+  "source": "/Users/peterbjerrehansen/Desktop/projects/coding_projects/active/latent-depth/experiments/02_fixed_latent_targets/controls/results/lambda_1_0/raw_controls.json",
+  "random_features_by_fit_and_level": [
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.17443428566458763,
+      "min_balanced_accuracy": 0.17443428566458763,
+      "max_balanced_accuracy": 0.17443428566458763,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.25375068626895775,
+      "min_balanced_accuracy": 0.25375068626895775,
+      "max_balanced_accuracy": 0.25375068626895775,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.36740852210499214,
+      "min_balanced_accuracy": 0.3674085221049922,
+      "max_balanced_accuracy": 0.3674085221049922,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.5306990318612386,
+      "min_balanced_accuracy": 0.5306990318612386,
+      "max_balanced_accuracy": 0.5306990318612386,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.7501783214253797,
+      "min_balanced_accuracy": 0.7368997207667488,
+      "max_balanced_accuracy": 0.7630167633879894,
+      "n": 21
+    },
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.9183415080849203,
+      "min_balanced_accuracy": 0.9183415080849204,
+      "max_balanced_accuracy": 0.9183415080849204,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.9910252078583138,
+      "min_balanced_accuracy": 0.9910252078583139,
+      "max_balanced_accuracy": 0.9910252078583139,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 2,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.9997861393282186,
+      "min_balanced_accuracy": 0.9991749174917491,
+      "max_balanced_accuracy": 1.0,
+      "n": 21
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.08513854266716207,
+      "min_balanced_accuracy": 0.08513854266716206,
+      "max_balanced_accuracy": 0.08513854266716206,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.0957172050271613,
+      "min_balanced_accuracy": 0.0957172050271613,
+      "max_balanced_accuracy": 0.0957172050271613,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.10802942970664182,
+      "min_balanced_accuracy": 0.10802942970664182,
+      "max_balanced_accuracy": 0.10802942970664182,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.13688734013492448,
+      "min_balanced_accuracy": 0.13688734013492448,
+      "max_balanced_accuracy": 0.13688734013492448,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.151981316808383,
+      "min_balanced_accuracy": 0.14581285509359992,
+      "max_balanced_accuracy": 0.15948058452710204,
+      "n": 21
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.17576729464681898,
+      "min_balanced_accuracy": 0.17576729464681898,
+      "max_balanced_accuracy": 0.17576729464681898,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.22453515166618385,
+      "min_balanced_accuracy": 0.22453515166618382,
+      "max_balanced_accuracy": 0.22453515166618382,
+      "n": 3
+    },
+    {
+      "baseline": "random_features",
+      "level": 3,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.23954661888304088,
+      "min_balanced_accuracy": 0.23518635424332668,
+      "max_balanced_accuracy": 0.24466381867564868,
+      "n": 21
+    }
+  ],
+  "surface_baselines_by_fit_and_level": [
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.19493269354992884,
+      "min_balanced_accuracy": 0.19493269354992884,
+      "max_balanced_accuracy": 0.19493269354992884,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.27598806292571776,
+      "min_balanced_accuracy": 0.27598806292571776,
+      "max_balanced_accuracy": 0.27598806292571776,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.38874800460764786,
+      "min_balanced_accuracy": 0.3887480046076478,
+      "max_balanced_accuracy": 0.3887480046076478,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.573358462366147,
+      "min_balanced_accuracy": 0.573358462366147,
+      "max_balanced_accuracy": 0.573358462366147,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.6016403737604049,
+      "min_balanced_accuracy": 0.6016403737604049,
+      "max_balanced_accuracy": 0.6016403737604049,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.6189060986257353,
+      "min_balanced_accuracy": 0.6189060986257353,
+      "max_balanced_accuracy": 0.6189060986257353,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.6207207597944203,
+      "min_balanced_accuracy": 0.6207207597944203,
+      "max_balanced_accuracy": 0.6207207597944203,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 2,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.6235318121467748,
+      "min_balanced_accuracy": 0.6235318121467748,
+      "max_balanced_accuracy": 0.6235318121467748,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.11058628488351878,
+      "min_balanced_accuracy": 0.11058628488351878,
+      "max_balanced_accuracy": 0.11058628488351878,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.11898395792334726,
+      "min_balanced_accuracy": 0.11898395792334726,
+      "max_balanced_accuracy": 0.11898395792334726,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.13167154813601512,
+      "min_balanced_accuracy": 0.13167154813601512,
+      "max_balanced_accuracy": 0.13167154813601512,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.1534464898520613,
+      "min_balanced_accuracy": 0.1534464898520613,
+      "max_balanced_accuracy": 0.1534464898520613,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.17819442417979822,
+      "min_balanced_accuracy": 0.1781944241797982,
+      "max_balanced_accuracy": 0.1781944241797982,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.2372784146526584,
+      "min_balanced_accuracy": 0.23727841465265836,
+      "max_balanced_accuracy": 0.23727841465265836,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.27019571997312286,
+      "min_balanced_accuracy": 0.27019571997312286,
+      "max_balanced_accuracy": 0.27019571997312286,
+      "n": 3
+    },
+    {
+      "baseline": "surface_linear",
+      "level": 3,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.274576656080043,
+      "min_balanced_accuracy": 0.274576656080043,
+      "max_balanced_accuracy": 0.274576656080043,
+      "n": 3
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.11850867336741136,
+      "min_balanced_accuracy": 0.11850867336741136,
+      "max_balanced_accuracy": 0.11850867336741136,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.17120831055678223,
+      "min_balanced_accuracy": 0.17120831055678223,
+      "max_balanced_accuracy": 0.17120831055678223,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.26731224982859764,
+      "min_balanced_accuracy": 0.26731224982859764,
+      "max_balanced_accuracy": 0.26731224982859764,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.42554193740307655,
+      "min_balanced_accuracy": 0.42554193740307655,
+      "max_balanced_accuracy": 0.42554193740307655,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.6518105673745421,
+      "min_balanced_accuracy": 0.6518105673745421,
+      "max_balanced_accuracy": 0.6518105673745421,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.870148265988238,
+      "min_balanced_accuracy": 0.870148265988238,
+      "max_balanced_accuracy": 0.870148265988238,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.9837777539570998,
+      "min_balanced_accuracy": 0.9837777539570998,
+      "max_balanced_accuracy": 0.9837777539570998,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 2,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.9975509924303241,
+      "min_balanced_accuracy": 0.9975509924303241,
+      "max_balanced_accuracy": 0.9975509924303241,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.06272174512630854,
+      "min_balanced_accuracy": 0.06272174512630854,
+      "max_balanced_accuracy": 0.06272174512630854,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.06272174512630854,
+      "min_balanced_accuracy": 0.06272174512630854,
+      "max_balanced_accuracy": 0.06272174512630854,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.06291297831172778,
+      "min_balanced_accuracy": 0.06291297831172778,
+      "max_balanced_accuracy": 0.06291297831172778,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.06386829406570074,
+      "min_balanced_accuracy": 0.06386829406570074,
+      "max_balanced_accuracy": 0.06386829406570074,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.06461042013271054,
+      "min_balanced_accuracy": 0.06461042013271054,
+      "max_balanced_accuracy": 0.06461042013271054,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.06792099326251641,
+      "min_balanced_accuracy": 0.06792099326251641,
+      "max_balanced_accuracy": 0.06792099326251641,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.07706098338591075,
+      "min_balanced_accuracy": 0.07706098338591075,
+      "max_balanced_accuracy": 0.07706098338591075,
+      "n": 1
+    },
+    {
+      "baseline": "surface_lookup",
+      "level": 3,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.0886475149856687,
+      "min_balanced_accuracy": 0.0886475149856687,
+      "max_balanced_accuracy": 0.0886475149856687,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.20117358395938628,
+      "min_balanced_accuracy": 0.20117358395938628,
+      "max_balanced_accuracy": 0.20117358395938628,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.2645969809565346,
+      "min_balanced_accuracy": 0.2645969809565346,
+      "max_balanced_accuracy": 0.2645969809565346,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.41326362238530323,
+      "min_balanced_accuracy": 0.41326362238530323,
+      "max_balanced_accuracy": 0.41326362238530323,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.6038296228672739,
+      "min_balanced_accuracy": 0.6038296228672739,
+      "max_balanced_accuracy": 0.6038296228672739,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.8473653049958177,
+      "min_balanced_accuracy": 0.8473653049958177,
+      "max_balanced_accuracy": 0.8473653049958177,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.9559147120178775,
+      "min_balanced_accuracy": 0.9559147120178775,
+      "max_balanced_accuracy": 0.9559147120178775,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.9989768076398363,
+      "min_balanced_accuracy": 0.9989768076398363,
+      "max_balanced_accuracy": 0.9989768076398363,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 2,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 1.0,
+      "min_balanced_accuracy": 1.0,
+      "max_balanced_accuracy": 1.0,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.11030633500609448,
+      "min_balanced_accuracy": 0.11030633500609448,
+      "max_balanced_accuracy": 0.11030633500609448,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.12344424109894737,
+      "min_balanced_accuracy": 0.12344424109894737,
+      "max_balanced_accuracy": 0.12344424109894737,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.14794916939635624,
+      "min_balanced_accuracy": 0.14794916939635624,
+      "max_balanced_accuracy": 0.14794916939635624,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.17647036956721143,
+      "min_balanced_accuracy": 0.17647036956721143,
+      "max_balanced_accuracy": 0.17647036956721143,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.21922943951662482,
+      "min_balanced_accuracy": 0.21922943951662482,
+      "max_balanced_accuracy": 0.21922943951662482,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.29296034792607956,
+      "min_balanced_accuracy": 0.29296034792607956,
+      "max_balanced_accuracy": 0.29296034792607956,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.42655702110599947,
+      "min_balanced_accuracy": 0.42655702110599947,
+      "max_balanced_accuracy": 0.42655702110599947,
+      "n": 1
+    },
+    {
+      "baseline": "surface_mlp",
+      "level": 3,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.5917309802135198,
+      "min_balanced_accuracy": 0.5917309802135198,
+      "max_balanced_accuracy": 0.5917309802135198,
+      "n": 1
+    }
+  ],
+  "shuffled_labels_by_fit_and_level": [
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.0622157374766615,
+      "min_balanced_accuracy": 0.0622157374766615,
+      "max_balanced_accuracy": 0.0622157374766615,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.06813920352718993,
+      "min_balanced_accuracy": 0.06813920352718993,
+      "max_balanced_accuracy": 0.06813920352718993,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.06322430602344098,
+      "min_balanced_accuracy": 0.06322430602344098,
+      "max_balanced_accuracy": 0.06322430602344098,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.06064605861269055,
+      "min_balanced_accuracy": 0.060646058612690554,
+      "max_balanced_accuracy": 0.060646058612690554,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.06251716072173427,
+      "min_balanced_accuracy": 0.06251716072173427,
+      "max_balanced_accuracy": 0.06251716072173427,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.06371801401510704,
+      "min_balanced_accuracy": 0.06371801401510704,
+      "max_balanced_accuracy": 0.06371801401510704,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.06477436599278055,
+      "min_balanced_accuracy": 0.06477436599278055,
+      "max_balanced_accuracy": 0.06477436599278055,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 2,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.06385795768434907,
+      "min_balanced_accuracy": 0.06385795768434907,
+      "max_balanced_accuracy": 0.06385795768434907,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 64,
+      "mean_balanced_accuracy": 0.06527811572755231,
+      "min_balanced_accuracy": 0.06527811572755231,
+      "max_balanced_accuracy": 0.06527811572755231,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 128,
+      "mean_balanced_accuracy": 0.06444109187044034,
+      "min_balanced_accuracy": 0.06444109187044034,
+      "max_balanced_accuracy": 0.06444109187044034,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 256,
+      "mean_balanced_accuracy": 0.06467373704833626,
+      "min_balanced_accuracy": 0.06467373704833626,
+      "max_balanced_accuracy": 0.06467373704833626,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 512,
+      "mean_balanced_accuracy": 0.0637329166332476,
+      "min_balanced_accuracy": 0.0637329166332476,
+      "max_balanced_accuracy": 0.0637329166332476,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 1024,
+      "mean_balanced_accuracy": 0.06815776767042594,
+      "min_balanced_accuracy": 0.06815776767042594,
+      "max_balanced_accuracy": 0.06815776767042594,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 2048,
+      "mean_balanced_accuracy": 0.0671498380440996,
+      "min_balanced_accuracy": 0.0671498380440996,
+      "max_balanced_accuracy": 0.0671498380440996,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 4096,
+      "mean_balanced_accuracy": 0.0648243562765336,
+      "min_balanced_accuracy": 0.0648243562765336,
+      "max_balanced_accuracy": 0.0648243562765336,
+      "n": 3
+    },
+    {
+      "baseline": "shuffled_labels",
+      "level": 3,
+      "fit_examples": 8192,
+      "mean_balanced_accuracy": 0.0652895411754831,
+      "min_balanced_accuracy": 0.0652895411754831,
+      "max_balanced_accuracy": 0.0652895411754831,
+      "n": 3
+    }
+  ],
+  "oracles": [
+    {
+      "level": 2,
+      "input": "true_child_latents",
+      "num_examples": 16384,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "represented_classes": 16,
+      "balanced_majority_accuracy": 0.0625
+    },
+    {
+      "level": 3,
+      "input": "true_child_latents",
+      "num_examples": 16384,
+      "accuracy": 1.0,
+      "balanced_accuracy": 1.0,
+      "represented_classes": 16,
+      "balanced_majority_accuracy": 0.0625
+    }
+  ],
+  "invariance_summary": [],
+  "invariance_runs": [],
+  "seed_zero_reference": {
+    "status": "matched",
+    "checkpoint": "experiments/02_fixed_latent_targets/runs/target_depth_l5_lambda_1_0_sparse_5000_updates/grammar_0/model_0/ntp/diagnostic_snapshots/step_00000000.pt",
+    "generated_digest": "a91f2190f6eab6193b80075669b10299c661802ec4fcf6ba37797a80311a8966",
+    "reference_digest": "a91f2190f6eab6193b80075669b10299c661802ec4fcf6ba37797a80311a8966"
+  }
+}
