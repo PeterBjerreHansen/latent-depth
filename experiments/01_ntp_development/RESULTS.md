@@ -10,8 +10,8 @@ two-checkpoint same-layer persistence directly to the raw trajectories.
 
 ## Required runs
 
-Configuration: [`configs/replication.json`](configs/replication.json)
-Output: `runs/replication_l5_5000_updates/`
+Configuration: [`configs/ntp_l5_m4.json`](configs/ntp_l5_m4.json)
+Output: `runs/ntp_l5_m4/`
 
 Each arm used the fresh-pool schedule for 5,000 updates: `1,280,000` sequence
 draws and `39,680,000` predicted tokens, with a per-epoch training pool of

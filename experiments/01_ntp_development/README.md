@@ -2,7 +2,7 @@
 
 Stage 01 asks whether ordinary causal next-token prediction develops a
 temporally ordered hierarchy of RHM latents. It is the baseline gate for the
-fixed residual-target experiment in Stage 02.
+later fixed residual-target experiments.
 
 ## Protocol
 
@@ -10,7 +10,7 @@ fixed residual-target experiment in Stage 02.
 - Ordinary causal NTP only; no latent auxiliary loss.
 - Eight Transformer blocks, eight heads, width 256, batch size 256.
 - Per-epoch training pool `P=65,536`, fixed validation/test pools, and the
-  full 2 × 2 grammar/model seed factorial in `configs/replication.json`.
+  full 2 × 2 grammar/model seed factorial in `configs/ntp_l5_m4.json`.
 - Evaluation every 250 optimizer updates, including step zero.
 - Validation probes every 500 updates through step 5,000; no checkpoints by default.
 - Offline probes on the embedding stream and all eight post-block streams.
@@ -25,7 +25,7 @@ in the training objective.
 
 The primary developmental measurement is balanced probe accuracy at the fixed
 threshold in
-[`../02_fixed_latent_targets/acquisition_rule.json`](../02_fixed_latent_targets/acquisition_rule.json):
+[`acquisition_rule.json`](acquisition_rule.json):
 `0.75`. For each observer layer, the first checkpoint at or above the
 threshold is an onset candidate. It is an observed accessibility event only
 when the same layer remains at or above the threshold at the next checkpoint.
@@ -54,10 +54,11 @@ latent-replacement contrast `Q`. A probe rise without a corresponding
 supporting representation signal is still a useful accessibility result, but
 should not be described as proof of a complete abstraction.
 
-Proceed to Stage 02 when the H2-before-H3 ordering is visible across the
-canonical runs, NTP has not saturated before the transition window, and the
-intervention diagnostics do not show persistent collapse. Record **go**,
-**no-go**, or **rerun baseline** in [RESULTS.md](RESULTS.md). These are
+After this baseline is accepted, proceed to the fixed-target screen when the
+H2-before-H3 ordering is visible across the canonical runs, NTP has not
+saturated before the transition window, and the intervention diagnostics do
+not show persistent collapse. Record **go**, **no-go**, or **rerun baseline** in
+[RESULTS.md](RESULTS.md). These are
 qualitative pre-registered criteria; do not introduce a new hard criterion
 after looking at the results.
 
@@ -67,8 +68,8 @@ Run from the repository root, on MPS when available:
 
 ```bash
 PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python sweep_data_size.py \
-  --config experiments/01_ntp_development/configs/replication.json \
-  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates
+  --config experiments/01_ntp_development/configs/ntp_l5_m4.json \
+  --output-dir experiments/01_ntp_development/runs/ntp_l5_m4
 ```
 
 Each run records probe scores during validation in `metrics.json`. Plot a run with:
@@ -77,9 +78,9 @@ Each run records probe scores during validation in `metrics.json`. Plot a run wi
 .venv/bin/python plot_trajectory.py --metrics RUN/metrics.json --output RUN/trajectory.png
 ```
 
-Use `summarize_target_depth.py` for paired Stage-02 screens. For Stage 01,
-apply the committed rule to the same validation history with the internal
-analysis helper. Supporting offline controls require explicitly saved states.
+For Stage 01, apply the committed local `acquisition_rule.json` to the
+same validation history with the internal analysis helper. Supporting offline
+controls require explicitly saved states.
 
 ## Reporting requirements
 

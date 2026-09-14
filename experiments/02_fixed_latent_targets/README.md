@@ -6,9 +6,9 @@ Results are currently cleared so both screens can be rerun from zero.
 
 ## Protocol
 
-Use [target_depth_screen_lambda_1_0.json](configs/target_depth_screen_lambda_1_0.json)
+Use [aux_depth_screen_l5_m4_lambda_1_0.json](configs/aux_depth_screen_l5_m4_lambda_1_0.json)
 for the L5/m=4 screen and
-[target_depth_screen_l8_m2_lambda_1_0.json](configs/target_depth_screen_l8_m2_lambda_1_0.json)
+[aux_depth_screen_l8_m2_lambda_1_0.json](configs/aux_depth_screen_l8_m2_lambda_1_0.json)
 for the L8/m=2 screen.
 
 Both screens use:
@@ -41,25 +41,25 @@ From the repository root:
 ```bash
 set -e
 PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python -u sweep_target_depth.py \
-  --config experiments/02_fixed_latent_targets/configs/target_depth_screen_lambda_1_0.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_m4_lambda_1_0_5000_updates
+  --config experiments/02_fixed_latent_targets/configs/aux_depth_screen_l5_m4_lambda_1_0.json \
+  --output-dir experiments/02_fixed_latent_targets/runs/aux_depth_screen_l5_m4_lambda_1_0_5000_updates
 PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python -u sweep_target_depth.py \
-  --config experiments/02_fixed_latent_targets/configs/target_depth_screen_l8_m2_lambda_1_0.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l8_m2_lambda_1_0_5000_updates
+  --config experiments/02_fixed_latent_targets/configs/aux_depth_screen_l8_m2_lambda_1_0.json \
+  --output-dir experiments/02_fixed_latent_targets/runs/aux_depth_screen_l8_m2_lambda_1_0_5000_updates
 ```
 
 After both screens finish, summarize each one:
 
 ```bash
 .venv/bin/python summarize_target_depth.py \
-  --screen-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_m4_lambda_1_0_5000_updates \
+  --screen-dir experiments/02_fixed_latent_targets/runs/aux_depth_screen_l5_m4_lambda_1_0_5000_updates \
   --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l5_m4_lambda_1_0_5000_updates/analysis
+  --output-dir experiments/02_fixed_latent_targets/runs/aux_depth_screen_l5_m4_lambda_1_0_5000_updates/analysis
 .venv/bin/python summarize_target_depth.py \
-  --screen-dir experiments/02_fixed_latent_targets/runs/target_depth_l8_m2_lambda_1_0_5000_updates \
+  --screen-dir experiments/02_fixed_latent_targets/runs/aux_depth_screen_l8_m2_lambda_1_0_5000_updates \
   --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
   --levels 3 4 5 6 7 \
-  --output-dir experiments/02_fixed_latent_targets/runs/target_depth_l8_m2_lambda_1_0_5000_updates/analysis
+  --output-dir experiments/02_fixed_latent_targets/runs/aux_depth_screen_l8_m2_lambda_1_0_5000_updates/analysis
 ```
 
 If a run must be restarted, remove its generated run directory and launch it

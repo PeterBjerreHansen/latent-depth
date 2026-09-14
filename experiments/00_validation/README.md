@@ -17,7 +17,7 @@ PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python validate_implementation.py \
 
 .venv/bin/python summarize_target_depth.py \
   --screen-dir experiments/00_validation/runs/target_depth_smoke \
-  --rule experiments/02_fixed_latent_targets/acquisition_rule.json \
+  --rule experiments/00_validation/acquisition_rule.json \
   --output-dir experiments/00_validation/runs/target_depth_smoke/analysis
 .venv/bin/python plot_trajectory.py \
   --comparison experiments/00_validation/runs/target_depth_smoke/analysis/comparison.json \
