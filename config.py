@@ -156,8 +156,7 @@ class TrainConfig:
     deterministic: bool = True
     deterministic_strict: bool = False
     # Set false for metrics-only runs; disables all model-state files.
-    save_checkpoints: bool = True
-    diagnostic_snapshot_every_updates: Optional[int] = None
+    save_checkpoints: bool = False
     checkpoint_every_updates: Optional[int] = None
 
     def validate(self) -> None:
@@ -167,8 +166,6 @@ class TrainConfig:
             raise ValueError("eval_every_updates must be positive when provided")
         if self.max_updates is not None and self.max_updates <= 0:
             raise ValueError("max_updates must be positive when provided")
-        if self.diagnostic_snapshot_every_updates is not None and self.diagnostic_snapshot_every_updates <= 0:
-            raise ValueError("diagnostic_snapshot_every_updates must be positive when provided")
         if self.checkpoint_every_updates is not None and self.checkpoint_every_updates <= 0:
             raise ValueError("checkpoint_every_updates must be positive when provided")
         if self.deterministic_strict and not self.deterministic:
@@ -185,6 +182,7 @@ class ExperimentConfig:
     auxiliary: AuxiliaryConfig = field(default_factory=AuxiliaryConfig)
     optim: OptimConfig = field(default_factory=OptimConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
+    diagnostics: Optional[DiagnosticsConfig] = None
     model_seed: int = 0
 
     def validate(self) -> None:
@@ -193,6 +191,12 @@ class ExperimentConfig:
         self.model.validate()
         self.optim.validate()
         self.train.validate()
+        if self.diagnostics is not None:
+            self.diagnostics.validate()
+            if self.rhm.L < 2:
+                raise ValueError("latent diagnostics require RHM depth L >= 2")
+            if self.diagnostics.synonym_clustering and self.rhm.m < 2:
+                raise ValueError("synonym clustering requires at least two productions per latent")
         self.auxiliary.validate(n_layer=self.model.n_layer)
 
     @classmethod
@@ -212,6 +216,7 @@ class ExperimentConfig:
                 }
             ),
             train=TrainConfig(**d.get("train", {})),
+            diagnostics=DiagnosticsConfig(**d["diagnostics"]) if d.get("diagnostics") is not None else None,
             model_seed=d.get("model_seed", 0),
         )
         cfg.validate()

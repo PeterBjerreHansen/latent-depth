@@ -12,16 +12,20 @@ The tests protect causal indexing, tied embeddings, detached latent targets,
 paired initialization, data generation, fresh-pool seeding, exposure accounting,
 probe standardization, held-out controls, and accessibility analysis.
 
-Training tests additionally verify that dense snapshots change neither
-parameters nor numerical metrics; resume preserves the model, head, optimizer,
-sampler, loader state, running losses and history across mid-epoch and epoch
-boundaries; diagnostic snapshots reject resume; substituted grammar files fail
-checksum validation; and training evaluates only the validation split.
-Offline probes from a full checkpoint and its model-only snapshot must agree.
+Training tests verify that validation probes leave parameters, auxiliary heads,
+optimizer and data-stream states, RNG, and NTP measurements unchanged with dropout
+and resampling. Online and offline probe scores must agree on the same state.
+Exact continuation restores measurement history without duplicate observations.
 
-The executable validation matrix checks the independent data/objective oracle,
-exact CPU replay, and tolerance-based CPU/MPS agreement and MPS replay.
-Do not interpret CPU bit equality as an MPS guarantee.
+Default runs must write no model states, even if a checkpoint interval is set.
+Opt-in saving supports final-only and periodic states without duplicating the
+final state. Failed probes must retain earlier measurements without marking the
+run complete. CE-only validation and explicit test evaluation remain supported.
 
-The full train → snapshot → offline probes → paired summary → plot smoke
+The executable validation matrix checks the data/objective oracle, exact CPU
+replay, CPU/MPS agreement, MPS replay, and observer noninterference plus online/
+offline agreement on CPU and MPS. CPU equality is exact; MPS checks use a stated
+tolerance and verify RNG equality.
+
+The checkpoint-free training → validation probes → paired summary → plot smoke
 workflow is documented in `experiments/00_validation/README.md`.

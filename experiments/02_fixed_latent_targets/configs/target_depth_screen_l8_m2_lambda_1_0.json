@@ -3,9 +3,9 @@
     "rhm": {
       "v": 16,
       "n": 16,
-      "m": 4,
+      "m": 2,
       "s": 2,
-      "L": 5,
+      "L": 8,
       "rule_seed": 0,
       "train_seed": 1000,
       "val_seed": 2000,
@@ -42,7 +42,7 @@
       "warmup_epochs": 0.0
     },
     "train": {
-      "batch_size": 256,
+      "batch_size": 32,
       "max_epochs": 1000,
       "max_updates": 5000,
       "grad_clip": 1.0,
@@ -53,25 +53,30 @@
       "device": "mps",
       "deterministic": true,
       "deterministic_strict": false,
-      "save_checkpoints": true,
-      "diagnostic_snapshot_every_updates": 100,
-      "checkpoint_every_updates": 500
+      "save_checkpoints": false,
+      "checkpoint_every_updates": null
     },
-    "model_seed": 0
+    "model_seed": 0,
+    "diagnostics": {
+      "linear_probe": true,
+      "synonym_clustering": false,
+      "num_sequences": 16384,
+      "probe_steps": 3000,
+      "probe_lr": 0.01,
+      "seed": 12345
+    }
   },
   "target_layers": [
     null,
     0,
-    1,
     2,
     4,
-    6
+    8
   ],
   "grammar_seeds": [
     0
   ],
   "model_seeds": [
     0
-  ],
-  "replicates": null
+  ]
 }

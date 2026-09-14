@@ -1,6 +1,0 @@
-{
-  "num_sequences": 16384,
-  "probe_steps": 3000,
-  "probe_lr": 0.01,
-  "probe_seed": 12345
-}

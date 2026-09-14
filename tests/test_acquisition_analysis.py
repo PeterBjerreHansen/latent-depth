@@ -87,13 +87,13 @@ def _trajectory(
                     }
                 }
             }
-        records.append({"checkpoint_global_step": step, "diagnostics": diagnostics})
+        records.append({"global_step": step, "diagnostics": diagnostics})
     return {
         "run_dir": "synthetic",
         "split": "val",
         "num_sequences": 32,
         "probe_steps": 8,
-        "checkpoints": records,
+        "history": records,
     }
 
 
@@ -231,7 +231,7 @@ def _config(target_layer):
             "grad_clip": 1.0, "eval_every_epochs": 1, "eval_every_updates": 1,
             "eval_at_start": True, "num_workers": 0, "device": "cpu",
             "deterministic": True, "deterministic_strict": True,
-            "save_checkpoints": True, "checkpoint_every_updates": 1, "diagnostic_snapshot_every_updates": 1,
+            "save_checkpoints": True, "checkpoint_every_updates": 1,
         },
         "model_seed": 0,
     }
@@ -330,7 +330,7 @@ def test_partial_target_comparison_is_allowed_and_reported():
 
 def test_q_heatmap_helper_uses_stored_distances():
     trajectory = _trajectory()
-    matrix, steps, layers = _heatmap(trajectory["checkpoints"], "q", ["2", "3"])
+    matrix, steps, layers = _heatmap(trajectory["history"], "q", ["2", "3"])
     assert matrix.shape == (len(steps) * layers, 2)
     assert matrix[0, 0] == pytest.approx(1.0)
 
@@ -372,12 +372,12 @@ def test_target_depth_cli_reads_raw_trajectories_and_writes_compact_comparison(t
         summary = summarize_trajectory_data(trajectory, RULE)
         arm = _arm(target_layer, summary)
         run_dir = screen / "grammar_0" / "model_0" / arm["arm"]
-        (run_dir / "trajectory").mkdir(parents=True)
+        run_dir.mkdir(parents=True)
         (run_dir / "config.json").write_text(json.dumps(arm["config"]), encoding="utf-8")
-        (run_dir / "metrics.json").write_text(json.dumps(arm["metrics"]), encoding="utf-8")
-        (run_dir / "trajectory" / "trajectory.json").write_text(
-            json.dumps(trajectory), encoding="utf-8"
-        )
+        metrics = arm["metrics"]
+        for row, probe in zip(metrics['history'], trajectory['history']):
+            row.update(probe)
+        (run_dir / "metrics.json").write_text(json.dumps(metrics), encoding="utf-8")
     rule_path = tmp_path / "acquisition_rule.json"
     rule_path.write_text(json.dumps(RULE), encoding="utf-8")
     result = summarize_target_depth(

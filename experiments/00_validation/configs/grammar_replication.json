@@ -45,7 +45,8 @@
       "device": "auto",
       "deterministic": true,
       "deterministic_strict": false,
-      "save_checkpoints": false
+      "save_checkpoints": false,
+      "checkpoint_every_updates": null
     },
     "model_seed": 0
   },

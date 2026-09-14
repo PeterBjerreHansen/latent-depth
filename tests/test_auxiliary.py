@@ -93,7 +93,7 @@ def _bundle(cfg: ExperimentConfig):
 def _datasets(bundle):
     return (
         LeafSequenceDataset(bundle.train.leaves),
-        LeafSequenceDataset(bundle.val.leaves),
+        bundle.val,
     )
 
 

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from diagnose import diagnose_checkpoint
+from training import saved_checkpoints
 
 
 def checkpoint_step(path: Path) -> int:
@@ -25,20 +26,22 @@ def diagnose_trajectory(
     steps: list[int] | None = None, every_updates: int | None = None,
 ) -> dict[str, Any]:
     run_path, output_path = Path(run_dir), Path(output_dir)
-    source = Path(snapshot_dir) if snapshot_dir is not None else run_path / 'diagnostic_snapshots'
+    source = Path(snapshot_dir) if snapshot_dir is not None else run_path / 'checkpoints'
     if steps is not None and every_updates is not None:
         raise ValueError('choose explicit steps or an update interval')
     if every_updates is not None and every_updates <= 0:
         raise ValueError('every_updates must be positive')
-    checkpoints = sorted(source.glob('step_*.pt'), key=checkpoint_step)
+    paths = ({checkpoint_step(p): p for p in source.glob('step_*.pt')}
+             if snapshot_dir is not None else saved_checkpoints(run_path))
+    paths = dict(sorted(paths.items()))
     if steps is not None:
-        missing = set(steps) - {checkpoint_step(p) for p in checkpoints}
+        missing = set(steps) - set(paths)
         if missing:
             raise ValueError(f'missing snapshot steps: {sorted(missing)}')
-        checkpoints = [p for p in checkpoints if checkpoint_step(p) in steps]
+        paths = {s: p for s, p in paths.items() if s in steps}
     if every_updates is not None:
-        checkpoints = [p for p in checkpoints if checkpoint_step(p) % every_updates == 0]
-    if not checkpoints:
+        paths = {s: p for s, p in paths.items() if s % every_updates == 0}
+    if not paths:
         raise RuntimeError(f'no selected step snapshots found under {source}')
     output_path.mkdir(parents=True, exist_ok=True)
     # Invalidate the derived view until all selected measurements are complete.
@@ -46,7 +49,7 @@ def diagnose_trajectory(
     summary_path.unlink(missing_ok=True)
     raw_path = output_path / 'records.jsonl'
     with raw_path.open('w') as handle:
-        for checkpoint in checkpoints:
+        for checkpoint in paths.values():
             result = diagnose_checkpoint(
                 checkpoint, split=split, device=device, metric=metric,
                 num_sequences=num_sequences, probe_steps=probe_steps,
@@ -62,7 +65,7 @@ def diagnose_trajectory(
         'device': device, 'metric': metric, 'controls': controls,
         'num_sequences': records[0]['diagnostics']['num_sequences'],
         'probe_steps': settings['probe_steps'], 'diagnostic_config': settings,
-        'checkpoints': records,
+        'history': records,
     }
     summary_path.write_text(json.dumps(summary, indent=2) + '\n')
     return summary
@@ -72,7 +75,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--run-dir', required=True)
     parser.add_argument('--output-dir', required=True)
-    parser.add_argument('--snapshot-dir', help='defaults to RUN/diagnostic_snapshots')
+    parser.add_argument('--snapshot-dir', help='explicit directory of step_*.pt states; defaults to saved continuation states')
     parser.add_argument('--split', choices=('val', 'test'), default='val')
     parser.add_argument('--device', default='auto')
     parser.add_argument('--metric', choices=('probe', 'clustering', 'all'), default='probe')

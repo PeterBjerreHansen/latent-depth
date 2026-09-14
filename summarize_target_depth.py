@@ -50,8 +50,8 @@ def _discover_arm_dirs(screen_dir: Path) -> list[Path]:
 def _load_arm(run_dir: Path, rule: Mapping[str, Any]) -> dict[str, Any]:
     metrics = _load_json(run_dir / "metrics.json", "arm metrics")
     config = _load_json(run_dir / "config.json", "arm config")
-    trajectory_path = run_dir / "trajectory" / "trajectory.json"
-    trajectory = _load_json(trajectory_path, "arm diagnostic trajectory")
+    trajectory_path = run_dir / "metrics.json"
+    trajectory = metrics
     summary = summarize_trajectory_data(
         trajectory, rule, source=trajectory_path
     )

@@ -1,5 +1,25 @@
 # Stage 00 validation results
 
+## Online validation probes and optional checkpoints — 15 September 2026
+
+- 89 tests pass, including observer noninterference, online/offline probe
+  agreement, probe-history continuation, checkpoint opt-in/default behavior,
+  and persistence of measurements after probe failure.
+- CPU observer checks are exact for model, head, validation CE and probe scores.
+- MPS observer checks preserve RNG exactly; maximum model difference is
+  `3.54e-7`, head difference `3.73e-9`, and validation CE difference `1.99e-8`.
+  Online/offline probe scores agree exactly in the tested case. All are within
+  the declared `1e-4` tolerance.
+- The three-arm checkpoint-free smoke completes five validation/probe events
+  per arm, paired analysis, comparison plots and a one-run heatmap. Its only
+  tensor files are the small grammars; no model or optimizer states are saved.
+- All 18 active experiment configs validate with checkpoint saving disabled.
+
+The local validation report and smoke outputs are in `runs/online_validation/`.
+Existing research checkpoints and historical measurements were not deleted.
+
+## Earlier snapshot workflow
+
 **Status:** complete
 
 The snapshot refactor was validated on 13 September 2026:

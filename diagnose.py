@@ -62,8 +62,8 @@ def diagnose_checkpoint(
         }
     return {
         "checkpoint": str(Path(checkpoint)),
-        "checkpoint_global_step": int(checkpoint_data.get("global_step", -1)),
-        "checkpoint_epoch": int(checkpoint_data.get("epoch", -1)),
+        "global_step": int(checkpoint_data.get("global_step", -1)),
+        "epoch": int(checkpoint_data.get("epoch", -1)),
         "split": split,
         "rule_seed": cfg.rhm.rule_seed,
         "model_seed": cfg.model_seed,

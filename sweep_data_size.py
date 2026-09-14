@@ -166,7 +166,7 @@ def main() -> None:
         grammar_dir = out / f"grammar_{grammar_seed}"
         grammar_dir.mkdir(exist_ok=True)
 
-        val_ds = LeafSequenceDataset(bundle.val.leaves)
+        val_ds = bundle.val
 
         for model_seed in grammar_model_seeds:
             for P in sweep.train_sizes:

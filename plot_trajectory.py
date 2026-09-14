@@ -66,7 +66,7 @@ def _heatmap(
         if blocks and layer_values.shape != blocks[0].shape:
             raise RuntimeError(f"inconsistent {metric} layer/level shape across checkpoints")
         blocks.append(layer_values)
-        steps.append(int(record["checkpoint_global_step"]))
+        steps.append(int(record["global_step"]))
     if not blocks:
         raise RuntimeError(f"trajectory contains no {metric} diagnostics")
     return np.concatenate(blocks, axis=0), steps, blocks[0].shape[0]
@@ -110,7 +110,7 @@ def _draw_heatmap(
     axis.set_yticklabels([str(step) for step in steps])
     axis.set_xticks(np.arange(len(levels)))
     axis.set_xticklabels([f"r={level}" for level in levels])
-    axis.set_ylabel("checkpoint step\n(rows = embedding, blocks)")
+    axis.set_ylabel("validation step\n(rows = embedding, blocks)")
     axis.set_title(title)
     axis.grid(axis="y", which="minor", alpha=0.2)
     axis.figure.colorbar(image, ax=axis, pad=0.01)
@@ -133,29 +133,29 @@ def _position_history(history: list[dict[str, Any]]) -> tuple[np.ndarray, np.nda
 
 
 def plot_trajectory(
-    trajectory: str | Path,
     metrics: str | Path,
     output: str | Path,
     *,
     q_epsilon: float = 1e-8,
 ) -> None:
     """Write NTP curves and layer-by-level diagnostic heatmaps."""
-    trajectory_data = _load(Path(trajectory))
-    records = trajectory_data["checkpoints"]
+    metric_data = _load(Path(metrics))
+    records = metric_data["history"]
     if not records:
         raise RuntimeError("trajectory contains no checkpoint records")
-    metric_data = _load(Path(metrics))
     history = metric_data.get("history", [])
     levels = _levels(records)
 
-    figure, axes = plt.subplots(5, 1, figsize=(10.0, 20.0))
+    has_supporting = all('synonym_clustering' in r['diagnostics'] and 'variable_sensitivity' in r['diagnostics'] for r in records)
+    count = 5 if has_supporting else 3
+    figure, axes = plt.subplots(count, 1, figsize=(10.0, 4.0 * count))
     history_steps = np.asarray([int(row["global_step"]) for row in history])
     val_ce = np.asarray([float(row["val_ce"]) for row in history])
     val_last = np.asarray([float(row["val_last_position_nll"]) for row in history])
     axes[0].plot(history_steps, val_ce, marker="o", label="validation CE")
     axes[0].plot(history_steps, val_last, marker="o", label="validation final-position NLL")
     axes[0].set_ylabel("NLL")
-    axes[0].set_title("Vanilla NTP training-age trajectory")
+    axes[0].set_title("Validation over training")
     axes[0].legend(fontsize=8)
 
     try:
@@ -184,22 +184,24 @@ def plot_trajectory(
         title="Balanced latent accessibility by layer and level",
         balanced=True,
     )
-    _draw_heatmap(
-        axes[3],
-        records,
-        "synonym_clustering",
-        levels,
-        title="Synonym invariance by layer and level",
-    )
-    _draw_heatmap(
-        axes[4],
-        records,
-        "q",
-        levels,
-        title="Normalized intervention contrast Q by layer and level",
-        q_epsilon=q_epsilon,
-    )
-    axes[4].set_xlabel("hierarchy level")
+    if has_supporting:
+        _draw_heatmap(
+            axes[3],
+            records,
+            "synonym_clustering",
+            levels,
+            title="Synonym invariance by layer and level",
+        )
+        _draw_heatmap(
+            axes[4],
+            records,
+            "q",
+            levels,
+            title="Normalized intervention contrast Q by layer and level",
+            q_epsilon=q_epsilon,
+        )
+
+    axes[-1].set_xlabel("hierarchy level")
 
     for axis in axes:
         axis.grid(alpha=0.25)
@@ -207,6 +209,7 @@ def plot_trajectory(
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     figure.savefig(output_path, dpi=180)
+    plt.close(figure)
     print(output_path)
 
 
@@ -537,7 +540,7 @@ def _ensure_comparison_summaries(comparison: Mapping[str, Any]) -> dict[str, Any
                 raise RuntimeError(
                     "compact comparison has no accessibility rule for summary reconstruction"
                 )
-            trajectory_path = Path(arm["run_dir"]) / "trajectory" / "trajectory.json"
+            trajectory_path = Path(arm["run_dir"]) / "metrics.json"
             trajectory = _load(trajectory_path)
             arm["summary"] = summarize_trajectory_data(
                 trajectory, rule, source=trajectory_path
@@ -608,9 +611,8 @@ def plot_target_depth_comparison(
 def _main_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     source = parser.add_mutually_exclusive_group(required=True)
-    source.add_argument("--trajectory", help="trajectory.json from diagnose_trajectory.py")
+    source.add_argument("--metrics", help="metrics.json containing validation CE and probes")
     source.add_argument("--comparison", help="comparison.json from summarize_target_depth.py")
-    parser.add_argument("--metrics", help="metrics.json from the same training run")
     parser.add_argument("--output", help="one-run PNG output path")
     parser.add_argument("--output-dir", help="directory for sweep comparison PNGs")
     return parser
@@ -619,10 +621,10 @@ def _main_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = _main_parser()
     args = parser.parse_args()
-    if args.trajectory is not None:
-        if args.metrics is None or args.output is None:
-            parser.error("--trajectory requires --metrics and --output")
-        plot_trajectory(args.trajectory, args.metrics, args.output)
+    if args.metrics is not None:
+        if args.output is None:
+            parser.error("--metrics requires --output")
+        plot_trajectory(args.metrics, args.output)
     else:
         if args.output_dir is None:
             parser.error("--comparison requires --output-dir")

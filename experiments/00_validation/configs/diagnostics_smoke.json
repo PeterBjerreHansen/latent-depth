@@ -42,9 +42,18 @@
     "device": "cpu",
     "deterministic": true,
     "deterministic_strict": true,
-    "save_checkpoints": true,
-    "checkpoint_every_updates": 4,
-    "diagnostic_snapshot_every_updates": 1
+    "save_checkpoints": false,
+    "checkpoint_every_updates": null,
+    "eval_at_start": true,
+    "eval_every_updates": 1
   },
-  "model_seed": 0
+  "model_seed": 0,
+  "diagnostics": {
+    "linear_probe": true,
+    "synonym_clustering": false,
+    "num_sequences": 32,
+    "probe_steps": 8,
+    "probe_lr": 0.01,
+    "seed": 12345
+  }
 }

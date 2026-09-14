@@ -53,19 +53,25 @@
       "device": "mps",
       "deterministic": true,
       "deterministic_strict": false,
-      "save_checkpoints": true,
-      "checkpoint_every_updates": 500,
-      "diagnostic_snapshot_every_updates": 100
+      "save_checkpoints": false,
+      "checkpoint_every_updates": null
     },
-    "model_seed": 0
+    "model_seed": 0,
+    "diagnostics": {
+      "linear_probe": true,
+      "synonym_clustering": false,
+      "num_sequences": 16384,
+      "probe_steps": 3000,
+      "probe_lr": 0.01,
+      "seed": 12345
+    }
   },
   "target_layers": [
     null,
     0,
-    1,
     2,
     4,
-    6
+    8
   ],
   "grammar_seeds": [
     0

@@ -19,8 +19,9 @@ from typing import Any
 import torch
 from torch.nn import functional as F
 
-from config import ExperimentConfig
+from config import ExperimentConfig, DiagnosticsConfig
 from nanogpt import GPT, GPTConfig
+from diagnose import diagnose_checkpoint
 from rhm.dataset import LeafSequenceDataset, build_rhm_bundle
 from rhm.random_hierarchy_model import sample_rules, sample_trees
 from training import build_model, train_model
@@ -87,7 +88,7 @@ def _bundle(cfg: ExperimentConfig):
 def _datasets(bundle):
     return (
         LeafSequenceDataset(bundle.train.leaves),
-        LeafSequenceDataset(bundle.val.leaves),
+        bundle.val,
     )
 
 
@@ -270,6 +271,42 @@ def check_mps_checkpoint_replay(root: Path) -> dict[str, Any]:
     }
 
 
+def check_validation_probes(root: Path, device: str) -> dict[str, Any]:
+    """Compare training with observers off/on, including dropout and fresh pools."""
+    if device == 'mps' and not torch.backends.mps.is_available():
+        return {'passed': True, 'skipped': True, 'reason': 'MPS unavailable'}
+    cfg = _tiny_config(device=device, max_updates=6)
+    cfg.model.dropout = 0.1
+    cfg.data.resample_train_each_epoch = True
+    cfg.auxiliary.mode = 'next_latent'
+    cfg.auxiliary.target_layer = 1
+    cfg.train.eval_at_start = True
+    cfg.train.eval_every_updates = 2
+    bundle = _bundle(cfg)
+    plain = train_model(cfg, *_datasets(bundle), output_dir=root/'plain', rules=bundle.rules, verbose=False)
+    observed_cfg = copy.deepcopy(cfg)
+    observed_cfg.diagnostics = DiagnosticsConfig(synonym_clustering=False, num_sequences=32, probe_steps=8)
+    observed = train_model(observed_cfg, *_datasets(bundle), output_dir=root/'observed', rules=bundle.rules, verbose=False)
+    left = torch.load(root/'plain/last.pt', map_location='cpu', weights_only=False)
+    right = torch.load(root/'observed/last.pt', map_location='cpu', weights_only=False)
+    delta = _state_max_abs_diff(left['model'], right['model'])
+    head_delta = _state_max_abs_diff(left['predictor'], right['predictor'])
+    ce_delta = max(abs(a['val_ce'] - b['val_ce']) for a, b in zip(plain['history'], observed['history']))
+    offline = diagnose_checkpoint(root/'observed/last.pt', device=device, metric='probe', num_sequences=32, probe_steps=8)
+    online = observed['history'][-1]['diagnostics']['linear_probe']['by_level']
+    offline = offline['diagnostics']['linear_probe']['by_level']
+    probe_delta = max(abs(a-b) for level in online for a,b in zip(online[level]['balanced_accuracy_by_layer'], offline[level]['balanced_accuracy_by_layer']))
+    tolerance = 0.0 if device == 'cpu' else 1e-4
+    if max(delta, head_delta, ce_delta, probe_delta) > tolerance:
+        raise AssertionError(f'{device} validation probes changed training or disagreed offline')
+    rng_key = 'torch' if device == 'cpu' else 'mps'
+    if not torch.equal(left['rng'][rng_key], right['rng'][rng_key]):
+        raise AssertionError(f'{device} probes changed the training RNG')
+    return {'passed': True, 'max_parameter_abs_delta': delta, 'max_head_abs_delta': head_delta,
+            'max_val_ce_abs_delta': ce_delta, 'max_probe_accuracy_abs_delta': probe_delta,
+            'tolerance': tolerance, 'rng_unchanged': True}
+
+
 def run_validation(output: str | Path | None = None, *, skip_mps: bool = False) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="latent-depth-validation-") as temp_dir:
         root = Path(temp_dir)
@@ -282,10 +319,12 @@ def run_validation(output: str | Path | None = None, *, skip_mps: bool = False) 
             "data_oracle": check_data_oracle(),
             "objective": check_objective(),
             "cpu_checkpoint_replay": check_cpu_checkpoint_replay(root / "replay"),
+            "cpu_validation_probes": check_validation_probes(root / "cpu_probes", "cpu"),
         }
         if skip_mps:
             report["device_pair"] = {"passed": True, "skipped": True, "reason": "--skip-mps"}
         else:
+            report["mps_validation_probes"] = check_validation_probes(root / "mps_probes", "mps")
             report["device_pair"] = check_device_pair(root / "device")
             report["mps_checkpoint_replay"] = check_mps_checkpoint_replay(root / "mps_replay")
 

@@ -46,7 +46,7 @@ def main() -> None:
     metrics = train_model(
         cfg,
         LeafSequenceDataset(bundle.train.leaves),
-        LeafSequenceDataset(bundle.val.leaves),
+        bundle.val,
         output_dir=out,
         resume_from=args.resume_from,
         rules=bundle.rules,

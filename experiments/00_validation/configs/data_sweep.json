@@ -44,7 +44,8 @@
       "num_workers": 0,
       "device": "auto",
       "deterministic": true,
-      "save_checkpoints": false
+      "save_checkpoints": false,
+      "checkpoint_every_updates": null
     },
     "model_seed": 0
   },

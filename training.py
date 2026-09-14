@@ -6,9 +6,9 @@ import copy
 import hashlib
 import inspect
 import json
-import os
 import math
 import random
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
@@ -20,7 +20,8 @@ from torch.utils.data import DataLoader, Dataset, Sampler
 from auxiliary import NextLatentPredictor, build_auxiliary_predictor, next_latent_loss
 from config import ExperimentConfig
 from nanogpt import GPT, GPTConfig
-from rhm.dataset import LeafSequenceDataset, sample_leaf_sequences
+from rhm.dataset import LeafSequenceDataset, RHMSplit, sample_leaf_sequences
+from diagnostics import run_latent_diagnostics
 from rhm.random_hierarchy_model import TensorDict
 from rhm.theory import loss_upper_bounds
 
@@ -369,11 +370,26 @@ def load_model_from_checkpoint(
 ) -> tuple[GPT, ExperimentConfig, dict[str, Any]]:
     """Load the GPT backbone only; auxiliary state is intentionally ignored."""
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
-    cfg = ExperimentConfig.from_dict(ckpt["config"])
+    # Saving schedules have no role in offline model inspection. Existing
+    # research snapshots remain readable after retiring their writer.
+    saved_config = copy.deepcopy(ckpt["config"])
+    saved_config["train"].pop("diagnostic_snapshot_every_updates", None)
+    cfg = ExperimentConfig.from_dict(saved_config)
     model = build_model(cfg)
     model.load_state_dict(ckpt["model"], strict=True)
     model.to(torch.device(device))
     return model, cfg, ckpt
+
+
+def saved_checkpoints(run_dir: str | Path) -> dict[int, Path]:
+    """Find periodic states plus the final state, which is stored only once."""
+    run = Path(run_dir)
+    paths = {int(p.stem.removeprefix('step_')): p for p in (run / 'checkpoints').glob('step_*.pt')}
+    final = run / 'last.pt'
+    if final.exists():
+        state = torch.load(final, map_location='cpu', weights_only=False)
+        paths[int(state['global_step'])] = final
+    return dict(sorted(paths.items()))
 
 
 def _clip_parameters(
@@ -394,20 +410,11 @@ def _save_torch(payload: dict[str, Any], path: str | Path) -> None:
     temporary.replace(path)
 
 
-def save_diagnostic_snapshot(
-    path: str | Path, *, model: GPT, cfg: ExperimentConfig,
-    epoch: int, global_step: int, grammar_path: Path,
-) -> None:
-    path = Path(path)
-    _save_torch({
-        "artifact_type": "diagnostic",
-        "model": _cpu_state_dict(model),
-        "config": cfg.to_dict(),
-        "epoch": epoch,
-        "global_step": global_step,
-        "grammar_file": os.path.relpath(grammar_path, path.parent),
-        "grammar_sha256": hashlib.sha256(grammar_path.read_bytes()).hexdigest(),
-    }, path)
+def _save_json(payload: dict[str, Any], path: Path) -> None:
+    """Keep the previous measurement history intact if a write is interrupted."""
+    temporary = path.with_suffix('.json.tmp')
+    temporary.write_text(json.dumps(payload, indent=2) + '\n')
+    temporary.replace(path)
 
 
 def artifact_rules(path: str | Path, artifact: dict[str, Any]) -> TensorDict:
@@ -421,17 +428,18 @@ def artifact_rules(path: str | Path, artifact: dict[str, Any]) -> TensorDict:
 
 
 def train_model(
-    cfg: ExperimentConfig, train_dataset: Dataset, val_dataset: Dataset, *,
+    cfg: ExperimentConfig, train_dataset: Dataset, val_split: RHMSplit, *,
     output_dir: Optional[str | Path] = None,
     resume_from: Optional[str | Path] = None,
     rules: Optional[TensorDict] = None, verbose: bool = True,
 ) -> dict[str, Any]:
     """Train to the requested budget; report validation without selecting a model.
 
-    Test evaluation and representation diagnostics are separate offline operations.
+    Probes observe the validation split in memory; test evaluation is explicit.
     Continuation checkpoints preserve the exact optimizer and data-stream state.
     """
     cfg.validate()
+    val_dataset = LeafSequenceDataset(val_split.leaves)
     if len(train_dataset) != cfg.data.train_size or len(val_dataset) != cfg.data.val_size:
         raise ValueError("training/validation dataset sizes do not match configuration")
     if cfg.train.num_workers != 0:
@@ -444,7 +452,7 @@ def train_model(
         if checkpoint.get("artifact_type") != "continuation":
             raise ValueError("resume requires a continuation checkpoint, not a diagnostic snapshot")
         saved = copy.deepcopy(checkpoint["config"])
-        for field in ("max_epochs", "max_updates"):
+        for field in ("max_epochs", "max_updates", "save_checkpoints", "checkpoint_every_updates"):
             saved["train"][field] = cfg.to_dict()["train"][field]
         if saved != cfg.to_dict():
             raise ValueError("resume checkpoint configuration does not match requested configuration")
@@ -453,12 +461,12 @@ def train_model(
             raise ValueError("resume checkpoint RHM rules do not match supplied rules")
         if rules is None:
             rules = saved_rules
+    if cfg.diagnostics is not None and rules is None:
+        raise ValueError("validation diagnostics require RHM rules")
     if cfg.data.resample_train_each_epoch and rules is None:
         raise ValueError("resampling training requires RHM rules")
     if out is not None:
         out.mkdir(parents=True, exist_ok=True)
-        if cfg.train.save_checkpoints and cfg.train.diagnostic_snapshot_every_updates is not None and rules is None:
-            raise ValueError("diagnostic snapshots require RHM rules")
         if rules is not None:
             grammar_path = out / 'rules.pt'
             if grammar_path.exists():
@@ -467,6 +475,7 @@ def train_model(
                     raise ValueError("run directory contains different RHM rules")
             else:
                 _save_torch(_cpu_tensor_dict(rules), grammar_path)
+        (out / 'metrics.json').unlink(missing_ok=True)
         (out / 'config.json').write_text(json.dumps(cfg.to_dict(), indent=2) + '\n')
 
     seed_everything(cfg.model_seed, cfg.train.deterministic, cfg.train.deterministic_strict)
@@ -497,6 +506,8 @@ def train_model(
         if resume_partial:
             running = state['running']
         restore_rng_state(checkpoint['rng'])
+    if out is not None:
+        _save_json({'history': history}, out / 'history.json')
     val_loader = make_loader(val_dataset, batch_size=cfg.train.batch_size, shuffle=False,
                              num_workers=0, seed=0, device=device)
     updates_per_epoch = math.ceil(len(train_dataset) / min(cfg.train.batch_size, len(train_dataset)))
@@ -505,7 +516,7 @@ def train_model(
     def record_evaluation(epoch: int) -> None:
         val_ce, positions = evaluate_with_positions(model, val_loader, cfg, device)
         n = running['seen']
-        history.append({
+        record = {
             'epoch': epoch, 'global_step': global_step,
             'running_train_ce': running['ntp'] / n if n else None,
             'running_aux_loss': running['aux'] / n if n and predictor is not None else None,
@@ -515,10 +526,15 @@ def train_model(
             'lr': float(optimizer.param_groups[0]['lr']),
             'auxiliary_weight': cfg.auxiliary.weight if predictor is not None else None,
             'target_layer': cfg.auxiliary.target_layer,
-        })
+        }
+        if cfg.diagnostics is not None:
+            record['diagnostics'] = run_latent_diagnostics(
+                model, val_split, rules, cfg, device, settings=cfg.diagnostics)
+            record['diagnostic_config'] = asdict(cfg.diagnostics)
+        history.append(record)
         if out is not None:
             # Persist measurements during training; metrics.json marks a completed run.
-            (out / 'history.json').write_text(json.dumps(history, indent=2) + '\n')
+            _save_json({'history': history}, out / 'history.json')
         if verbose:
             print(f"epoch={epoch:4d} step={global_step:7d} val_ce={val_ce:.6f}", flush=True)
 
@@ -536,19 +552,13 @@ def train_model(
     def save_states(epoch: int, *, final: bool = False) -> None:
         if out is None or not cfg.train.save_checkpoints:
             return
-        dense = cfg.train.diagnostic_snapshot_every_updates
-        if dense is not None and (global_step % dense == 0 or final):
-            save_diagnostic_snapshot(out / 'diagnostic_snapshots' / f'step_{global_step:08d}.pt',
-                                     model=model, cfg=cfg, epoch=epoch, global_step=global_step,
-                                     grammar_path=out / 'rules.pt')
-        sparse = cfg.train.checkpoint_every_updates
-        if sparse is not None and global_step % sparse == 0:
-            save_full(out / 'checkpoints' / f'step_{global_step:08d}.pt', epoch)
         if final:
             save_full(out / 'last.pt', epoch)
+        elif cfg.train.checkpoint_every_updates is not None and global_step % cfg.train.checkpoint_every_updates == 0:
+            save_full(out / 'checkpoints' / f'step_{global_step:08d}.pt', epoch)
 
     if checkpoint is None:
-        if cfg.train.eval_at_start:
+        if cfg.train.eval_at_start or cfg.diagnostics is not None:
             record_evaluation(0)
         save_states(0)
     final_epoch = checkpoint['epoch'] if checkpoint is not None else 0
@@ -631,6 +641,6 @@ def train_model(
         'history': history,
     }
     if out is not None:
-        (out / 'metrics.json').write_text(json.dumps(metrics, indent=2) + '\n')
+        _save_json(metrics, out / 'metrics.json')
         (out / 'history.json').unlink(missing_ok=True)
     return metrics

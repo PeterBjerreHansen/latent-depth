@@ -139,8 +139,8 @@ def _steps_from_records(
 ) -> tuple[list[Mapping[str, Any]], list[int]]:
     if not records:
         raise ValueError("trajectory contains no checkpoint records")
-    ordered = sorted(records, key=lambda record: int(record["checkpoint_global_step"]))
-    steps = [int(record["checkpoint_global_step"]) for record in ordered]
+    ordered = sorted(records, key=lambda record: int(record["global_step"]))
+    steps = [int(record["global_step"]) for record in ordered]
     if len(set(steps)) != len(steps):
         raise ValueError("trajectory contains duplicate checkpoint steps")
     if steps[0] != 0:
@@ -182,10 +182,13 @@ def summarize_trajectory_data(
     timing. Clustering and Q are retained only when the raw trajectory contains
     those diagnostics; neither is an acquisition hurdle.
     """
-    records, steps = _steps_from_records(trajectory.get("checkpoints", []))
+    records, steps = _steps_from_records(trajectory.get("history", []))
     validated_rule = load_rule_mapping(rule)
     primary_threshold = float(validated_rule["accessibility"]["primary_threshold"])
 
+    settings = records[0].get("diagnostic_config")
+    if any(record.get("diagnostic_config") != settings for record in records):
+        raise ValueError("validation records do not share the same diagnostic settings")
     first_diagnostics = _mapping(records[0]["diagnostics"], "checkpoint diagnostics")
     first_probe = _mapping(first_diagnostics.get("linear_probe"), "linear_probe diagnostics")
     first_by_level = _mapping(first_probe.get("by_level"), "linear_probe.by_level")
@@ -409,10 +412,10 @@ def summarize_trajectory_data(
         "schema_version": SCHEMA_VERSION,
         "source_trajectory": str(source) if source is not None else None,
         "run_dir": trajectory.get("run_dir"),
-        "split": trajectory.get("split"),
-        "num_sequences": trajectory.get("num_sequences"),
-        "probe_steps": trajectory.get("probe_steps"),
-        "diagnostic_config": trajectory.get("diagnostic_config"),
+        "split": records[0].get("split", "val"),
+        "num_sequences": first_diagnostics.get("num_sequences"),
+        "probe_steps": first_probe.get("probe_steps"),
+        "diagnostic_config": records[0].get("diagnostic_config"),
         "checkpoint_steps": steps,
         "through_step": int(steps[-1]),
         "levels": levels_output,

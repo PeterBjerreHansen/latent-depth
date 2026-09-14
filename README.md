@@ -9,14 +9,14 @@ shared-state continuation comparisons.
 
 ```text
 RHM leaves → causal Transformer + optional fixed-target predictor
-                  ↓                            ↓
-         backbone snapshots          continuation checkpoints
                   ↓
-         offline probes → paired accessibility and NTP curves
+         validation NLL + fresh probes on the live model
+                  ↓
+         paired accessibility and NTP curves
 ```
 
-- `training.py` trains and records fixed-validation NLL. It does not run
-  diagnostics, select a second model, or evaluate test data.
+- `training.py` records validation NLL and optional probe measurements together.
+  Model checkpoints are opt-in; probes never update the backbone or its optimizer.
 - `auxiliary.py` defines detached next-position residual targets and the predictor.
 - `diagnose.py` / `diagnose_trajectory.py` inspect saved backbone states offline.
 - `summarize_target_depth.py` applies the frozen measurement rule to paired arms.
@@ -32,7 +32,7 @@ RHM leaves → causal Transformer + optional fixed-target predictor
 - [Stage 02: stronger fixed-target screen](experiments/02_fixed_latent_targets/README.md)
 
 Local run directories contain resolved configs, the exact grammar, measurements,
-model-only snapshots, and sparse full continuation states. Large run artifacts
+and optional full continuation states. No model states are saved by default. Large run artifacts
 are ignored. Keep compact results and calibration records with each experiment.
 Historical formats are not compatibility targets.
 

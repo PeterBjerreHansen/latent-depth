@@ -12,7 +12,7 @@ fixed residual-target experiment in Stage 02.
 - Per-epoch training pool `P=65,536`, fixed validation/test pools, and the
   full 2 × 2 grammar/model seed factorial in `configs/replication.json`.
 - Evaluation every 250 optimizer updates, including step zero.
-- Model-only diagnostic snapshots every 500 updates through step 5,000.
+- Validation probes every 500 updates through step 5,000; no checkpoints by default.
 - Offline probes on the embedding stream and all eight post-block streams.
   Shuffled-label controls are optional and do not define acquisition.
 
@@ -71,30 +71,15 @@ PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python sweep_data_size.py \
   --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates
 ```
 
-Diagnose every model snapshot for each confirmation run:
+Each run records probe scores during validation in `metrics.json`. Plot a run with:
 
 ```bash
-PYTORCH_ENABLE_MPS_FALLBACK=0 .venv/bin/python diagnose_trajectory.py \
-  --run-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536 \
-  --output-dir experiments/01_ntp_development/runs/replication_l5_5000_updates/grammar_0/model_0/P_65536/trajectory \
-  --controls
-```
-
-Repeat the command for the other three `grammar_*/model_*` directories. The
-`--controls` flag adds the shuffled-label probe only. One-run visualizations
-can be made with:
-
-```bash
-.venv/bin/python plot_trajectory.py \
-  --trajectory RUN/trajectory/trajectory.json \
-  --metrics RUN/metrics.json \
-  --output RUN/trajectory/trajectory.png
+.venv/bin/python plot_trajectory.py --metrics RUN/metrics.json --output RUN/trajectory.png
 ```
 
 Use `summarize_target_depth.py` for paired Stage-02 screens. For Stage 01,
-inspect the raw trajectories and apply the committed rule through the same
-internal analysis helper; there is no per-run acquisition artifact to keep in
-sync with the raw data.
+apply the committed rule to the same validation history with the internal
+analysis helper. Supporting offline controls require explicitly saved states.
 
 ## Reporting requirements
 
@@ -104,14 +89,13 @@ The report must include:
 - balanced accessibility curves and fixed-threshold onset/confirmation;
 - the persistent 50/75/90% probe milestones;
 - layerwise clustering, intervention distances, and `Q`;
-- grammar/model seeds, snapshot schedule and exposure accounting;
+- grammar/model seeds, validation schedule and exposure accounting;
 - a clear **go**, **no-go**, or **rerun baseline** decision.
 
 The results report should distinguish observed events from levels not confirmed
 by the final checkpoint. H1 is useful context because local token information
 can make it accessible early; H2 and H3 provide the main developmental gate.
 
-The recorded Stage-01 results predate the snapshot refactor. New runs use the
-current config and model-only snapshots; old model artifacts are not accepted
-by the current loader. Supporting C/Q diagnostics can be run separately with
-`--metric clustering --every-updates 500` into a separate output directory.
+The recorded Stage-01 results predate online validation probes. New runs use
+the current configuration and store measurements without model checkpoints.
+Historical evidence remains unchanged.

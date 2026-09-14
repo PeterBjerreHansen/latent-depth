@@ -5,7 +5,7 @@ import pytest
 import torch
 
 import training
-from config import ExperimentConfig
+from config import ExperimentConfig, DiagnosticsConfig
 from diagnose import diagnose_checkpoint
 from diagnose_trajectory import diagnose_trajectory
 from evaluate_snapshot import evaluate_snapshot
@@ -23,7 +23,7 @@ def _cfg():
         'train': {'batch_size': 16, 'max_epochs': 4, 'max_updates': 7,
                   'eval_every_updates': 2, 'eval_at_start': True, 'device': 'cpu',
                   'deterministic_strict': True, 'checkpoint_every_updates': 2,
-                  'diagnostic_snapshot_every_updates': 1},
+                  'save_checkpoints': True},
     })
 
 
@@ -35,7 +35,7 @@ def _bundle(cfg):
 def _run(cfg, output_dir=None, **kwargs):
     bundle = _bundle(cfg)
     return train_model(cfg, LeafSequenceDataset(bundle.train.leaves),
-                       LeafSequenceDataset(bundle.val.leaves), rules=bundle.rules,
+                       bundle.val, rules=bundle.rules,
                        output_dir=output_dir, verbose=False, **kwargs)
 
 
@@ -57,27 +57,28 @@ def _equal(a, b):
 
 
 @pytest.mark.parametrize('auxiliary', [False, True])
-def test_snapshots_are_observational_and_backbone_only(tmp_path, auxiliary):
+def test_validation_probes_do_not_change_training(tmp_path, auxiliary):
     cfg = _cfg()
     if auxiliary:
         cfg.auxiliary.mode = 'next_latent'
         cfg.auxiliary.target_layer = 1
     plain_cfg = copy.deepcopy(cfg)
-    plain_cfg.train.diagnostic_snapshot_every_updates = None
+    cfg.diagnostics = DiagnosticsConfig(synonym_clustering=False, num_sequences=16, probe_steps=8)
+    plain_cfg.diagnostics = None
     plain_metrics = _run(plain_cfg, tmp_path/'plain')
     snapshot_metrics = _run(cfg, tmp_path/'snapshots')
+    observed_history = snapshot_metrics.pop('history')
+    plain_history = plain_metrics.pop('history')
     assert plain_metrics == snapshot_metrics
+    for observed_row, plain_row in zip(observed_history, plain_history):
+        assert observed_row.pop('diagnostics')['linear_probe']['fit_examples'] == 8
+        observed_row.pop('diagnostic_config')
+        assert observed_row == plain_row
     plain, observed = _load(tmp_path/'plain/last.pt'), _load(tmp_path/'snapshots/last.pt')
-    for key in ['model', 'optimizer', 'predictor', 'loader_states', 'trainer_state']:
+    for key in ['model', 'optimizer', 'predictor', 'loader_states']:
         _equal(plain[key], observed[key])
     _equal(plain['rng']['torch'], observed['rng']['torch'])
-    files = sorted((tmp_path/'snapshots/diagnostic_snapshots').glob('*.pt'))
-    assert len(files) == 8
-    state = _load(files[-1])
-    assert state['artifact_type'] == 'diagnostic'
-    assert not set(state) & {'optimizer', 'predictor', 'rng', 'rules', 'best_model'}
-    _equal(state['model'], observed['model'])
-    assert not (tmp_path/'snapshots/best.pt').exists()
+    assert not (tmp_path/'snapshots/diagnostic_snapshots').exists()
     assert 'best_model' not in observed
 
 
@@ -86,6 +87,7 @@ def test_snapshots_are_observational_and_backbone_only(tmp_path, auxiliary):
 def test_exact_resume_preserves_training_and_metrics(tmp_path, step, auxiliary):
     cfg = _cfg()
     cfg.train.checkpoint_every_updates = 1
+    cfg.diagnostics = DiagnosticsConfig(synonym_clustering=False, num_sequences=16, probe_steps=3)
     if auxiliary:
         cfg.auxiliary.mode = 'next_latent'
         cfg.auxiliary.target_layer = 1
@@ -99,26 +101,14 @@ def test_exact_resume_preserves_training_and_metrics(tmp_path, step, auxiliary):
     _equal(a['rng']['torch'], b['rng']['torch'])
 
 
-def test_resume_rejects_snapshot_and_wrong_grammar(tmp_path):
+def test_resume_rejects_wrong_grammar(tmp_path):
     cfg = _cfg()
     _run(cfg, tmp_path/'run')
-    with pytest.raises(ValueError, match='continuation checkpoint'):
-        _run(cfg, tmp_path/'resume', resume_from=tmp_path/'run/diagnostic_snapshots/step_00000002.pt')
     bundle = _bundle(cfg)
     bundle.rules[1][0, 0, 0] = (bundle.rules[1][0, 0, 0]+1) % cfg.rhm.v
     with pytest.raises(ValueError, match='RHM rules'):
-        train_model(cfg, LeafSequenceDataset(bundle.train.leaves), LeafSequenceDataset(bundle.val.leaves),
+        train_model(cfg, LeafSequenceDataset(bundle.train.leaves), bundle.val,
                     rules=bundle.rules, resume_from=tmp_path/'run/last.pt', verbose=False)
-
-
-def test_snapshot_grammar_is_verified(tmp_path):
-    _run(_cfg(), tmp_path)
-    path = tmp_path/'diagnostic_snapshots/step_00000002.pt'
-    _, _, state = load_model_from_checkpoint(path)
-    assert artifact_rules(path, state)
-    (tmp_path/'rules.pt').write_bytes(b'wrong grammar')
-    with pytest.raises(ValueError, match='checksum'):
-        artifact_rules(path, state)
 
 
 def test_training_only_evaluates_validation_and_reports_final_state(tmp_path, monkeypatch):
@@ -142,23 +132,22 @@ def test_training_only_evaluates_validation_and_reports_final_state(tmp_path, mo
     assert test['split'] == 'test' and test['num_sequences'] == 32
 
 
-def test_offline_snapshot_and_checkpoint_diagnostics_agree(tmp_path):
-    _run(_cfg(), tmp_path)
-    paths = [tmp_path/'checkpoints/step_00000002.pt', tmp_path/'diagnostic_snapshots/step_00000002.pt']
-    results = [diagnose_checkpoint(p, device='cpu', num_sequences=16, probe_steps=8, controls=True) for p in paths]
-    assert results[0]['diagnostics'] == results[1]['diagnostics']
-    assert results[0]['diagnostic_config'] == results[1]['diagnostic_config']
+def test_online_and_offline_diagnostics_agree(tmp_path):
+    cfg = _cfg()
+    cfg.diagnostics = DiagnosticsConfig(synonym_clustering=False, num_sequences=16, probe_steps=8)
+    metrics = _run(cfg, tmp_path)
+    offline = diagnose_checkpoint(tmp_path/'last.pt', device='cpu', metric='probe', num_sequences=16, probe_steps=8)
+    assert metrics['history'][-1]['diagnostics'] == offline['diagnostics']
+    assert metrics['history'][-1]['diagnostic_config'] == offline['diagnostic_config']
 
 
-def test_sparse_supporting_diagnostics_are_separate_from_probe_trajectory(tmp_path):
-    _run(_cfg(), tmp_path/'run')
-    probes = diagnose_trajectory(tmp_path/'run', tmp_path/'probe', device='cpu', num_sequences=16, probe_steps=3)
+def test_offline_measurements_include_final_and_selected_checkpoints(tmp_path):
+    cfg = _cfg()
+    _run(cfg, tmp_path/'run')
     supporting = diagnose_trajectory(tmp_path/'run', tmp_path/'support', device='cpu',
-                                    metric='clustering', num_sequences=16, every_updates=3)
-    assert len(probes['checkpoints']) == 8
-    assert [r['checkpoint_global_step'] for r in supporting['checkpoints']] == [0, 3, 6]
-    assert all('linear_probe' not in r['diagnostics'] for r in supporting['checkpoints'])
-    assert all('synonym_clustering' not in r['diagnostics'] for r in probes['checkpoints'])
+                                    metric='clustering', num_sequences=16, steps=[0, 4, 7])
+    assert [r['global_step'] for r in supporting['history']] == [0, 4, 7]
+    assert all('linear_probe' not in r['diagnostics'] for r in supporting['history'])
     with pytest.raises(ValueError, match='missing snapshot'):
         diagnose_trajectory(tmp_path/'run', tmp_path/'bad', steps=[999])
 
@@ -189,3 +178,57 @@ def test_unmeasured_checkpoint_has_its_own_step(tmp_path):
 
 def test_training_without_output_directory():
     assert _run(_cfg())['global_step'] == 7
+
+
+@pytest.mark.parametrize('interval', [None, 1])
+def test_default_checkpoint_policy_writes_measurements_only(tmp_path, interval):
+    cfg = _cfg()
+    cfg.train.save_checkpoints = ExperimentConfig().train.save_checkpoints
+    cfg.train.checkpoint_every_updates = interval
+    cfg.train.eval_at_start = False
+    cfg.diagnostics = DiagnosticsConfig(synonym_clustering=False, num_sequences=16, probe_steps=3)
+    metrics = _run(cfg, tmp_path)
+    assert [r['global_step'] for r in metrics['history']] == [0, 2, 4, 6, 7]
+    assert all('diagnostics' in r for r in metrics['history'])
+    assert sorted(p.name for p in tmp_path.iterdir()) == ['config.json', 'metrics.json', 'rules.pt']
+
+
+@pytest.mark.parametrize('interval', [None, 1])
+def test_opt_in_checkpoints_do_not_duplicate_final_state(tmp_path, interval):
+    cfg = _cfg()
+    cfg.train.checkpoint_every_updates = interval
+    _run(cfg, tmp_path)
+    assert (tmp_path/'last.pt').exists()
+    assert not (tmp_path/'checkpoints/step_00000007.pt').exists()
+    assert len(list((tmp_path/'checkpoints').glob('*.pt'))) == (7 if interval else 0)
+    assert set(training.saved_checkpoints(tmp_path)) == (set(range(8)) if interval else {7})
+
+
+def test_failed_probe_keeps_previous_measurements_and_no_completion_marker(tmp_path, monkeypatch):
+    import json
+    cfg = _cfg()
+    cfg.train.save_checkpoints = False
+    cfg.diagnostics = DiagnosticsConfig(synonym_clustering=False, num_sequences=16, probe_steps=3)
+    original = training.run_latent_diagnostics
+    calls = 0
+    def fail_second(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError('probe failed')
+        return original(*args, **kwargs)
+    monkeypatch.setattr(training, 'run_latent_diagnostics', fail_second)
+    with pytest.raises(RuntimeError, match='probe failed'):
+        _run(cfg, tmp_path)
+    assert not (tmp_path/'metrics.json').exists()
+    assert [r['global_step'] for r in json.loads((tmp_path/'history.json').read_text())['history']] == [0]
+
+
+def test_resume_can_disable_checkpoint_saving_and_restores_probe_history(tmp_path):
+    cfg = _cfg()
+    cfg.diagnostics = DiagnosticsConfig(synonym_clustering=False, num_sequences=16, probe_steps=3)
+    full = _run(cfg, tmp_path/'full')
+    cfg.train.save_checkpoints = False
+    resumed = _run(cfg, tmp_path/'resumed', resume_from=tmp_path/'full/checkpoints/step_00000004.pt')
+    assert full == resumed
+    assert [p.name for p in (tmp_path/'resumed').rglob('*.pt')] == ['rules.pt']
